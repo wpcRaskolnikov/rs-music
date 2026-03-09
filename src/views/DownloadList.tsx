@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import {
+  Box,
   Table,
   TableHead,
   TableRow,
@@ -27,9 +28,9 @@ const DownloadList: React.FC = () => {
   ]);
 
   return (
-    <>
+    <Box sx={{ height: "100%", overflow: "hidden", p: 2 }}>
       {list.length ? (
-        <TableContainer>
+        <TableContainer sx={{ height: "100%" }}>
           <Table size="small" stickyHeader>
             <TableHead>
               <TableRow>
@@ -71,7 +72,7 @@ const DownloadList: React.FC = () => {
       ) : (
         <EmptyText text="暂无下载任务" />
       )}
-    </>
+    </Box>
   );
 };
 

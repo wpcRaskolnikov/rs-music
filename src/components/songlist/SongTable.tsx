@@ -33,46 +33,50 @@ const SongTable: React.FC<{
     console.log("删除", list[index]);
   };
 
-  return list.length ? (
-    <TableContainer sx={{ maxHeight: "100%" }}>
-      <Table size="small" stickyHeader>
-        <TableHead>
-          <TableRow>
-            <TableCell>歌曲名</TableCell>
-            <TableCell>歌手</TableCell>
-            <TableCell>专辑</TableCell>
-            <TableCell align="center">操作</TableCell>
-            <TableCell sx={{ whiteSpace: 'nowrap' }}>时长</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {list.map((item, index) => (
-            <TableRow
-              key={item.src}
-              hover
-              onDoubleClick={() => handlePlay(index)}
-            >
-              <TableCell>{item.title}</TableCell>
-              <TableCell>{item.artist}</TableCell>
-              <TableCell>{item.album}</TableCell>
-              <TableCell align="center">
-                <Box display="flex">
-                  <IconButton onClick={() => handlePlay(index)}>
-                    <HeadphonesIcon fontSize="small" />
-                  </IconButton>
-                  <IconButton onClick={() => handleRemove(index)}>
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
-                </Box>
-              </TableCell>
-              <TableCell>{item.duration}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
-  ) : (
-    <EmptyText text="暂无歌曲" />
+  return (
+    <Box sx={{ flex: 1, height: "100%", overflow: "hidden", p: 2 }}>
+      {list.length ? (
+        <TableContainer sx={{ height: "100%" }}>
+          <Table size="small" stickyHeader>
+            <TableHead>
+              <TableRow>
+                <TableCell>歌曲名</TableCell>
+                <TableCell>歌手</TableCell>
+                <TableCell>专辑</TableCell>
+                <TableCell align="center">操作</TableCell>
+                <TableCell sx={{ whiteSpace: "nowrap" }}>时长</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {list.map((item, index) => (
+                <TableRow
+                  key={item.src}
+                  hover
+                  onDoubleClick={() => handlePlay(index)}
+                >
+                  <TableCell>{item.title}</TableCell>
+                  <TableCell>{item.artist}</TableCell>
+                  <TableCell>{item.album}</TableCell>
+                  <TableCell align="center">
+                    <Box display="flex">
+                      <IconButton onClick={() => handlePlay(index)}>
+                        <HeadphonesIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton onClick={() => handleRemove(index)}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
+                  </TableCell>
+                  <TableCell>{item.duration}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      ) : (
+        <EmptyText text="暂无歌曲" />
+      )}
+    </Box>
   );
 };
 

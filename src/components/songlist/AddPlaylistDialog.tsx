@@ -19,7 +19,7 @@ interface AddPlaylistDialogProps {
 const AddPlaylistDialog: React.FC<AddPlaylistDialogProps> = ({
   open,
   onClose,
-  onAddPlaylist
+  onAddPlaylist,
 }) => {
   const [newLabel, setNewLabel] = useState("");
 
@@ -30,10 +30,10 @@ const AddPlaylistDialog: React.FC<AddPlaylistDialogProps> = ({
     const newPlaylist = { label: newLabel.trim(), playlistId: tableName };
 
     const db = await Database.load("sqlite:db.sqlite");
-    db.execute(
-      "INSERT INTO playlist (label, playlist_id) VALUES (?, ?)",
-      [newPlaylist.label, newPlaylist.playlistId]
-    );
+    db.execute("INSERT INTO playlist (label, playlist_id) VALUES (?, ?)", [
+      newPlaylist.label,
+      newPlaylist.playlistId,
+    ]);
 
     onAddPlaylist(newPlaylist);
     setNewLabel("");
@@ -41,7 +41,7 @@ const AddPlaylistDialog: React.FC<AddPlaylistDialogProps> = ({
   };
 
   return (
-    <Dialog  open={open} onClose={onClose}>
+    <Dialog open={open} onClose={onClose}>
       <DialogTitle>新建播放列表</DialogTitle>
       <DialogContent>
         <TextField
@@ -55,9 +55,7 @@ const AddPlaylistDialog: React.FC<AddPlaylistDialogProps> = ({
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>取消</Button>
-        <Button onClick={addPlaylist} variant="outlined">
-          确定
-        </Button>
+        <Button onClick={addPlaylist}>确定</Button>
       </DialogActions>
     </Dialog>
   );

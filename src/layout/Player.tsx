@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { load } from "@tauri-apps/plugin-store";
 import React, { useState, useEffect, useRef } from "react";
-import { Box, IconButton, Typography, Slider } from "@mui/material";
+import { Box, IconButton, Typography, Slider, Tooltip } from "@mui/material";
 import {
   SkipPrevious as SkipPreIcon,
   PlayArrow as PlayArrowIcon,
@@ -33,6 +33,8 @@ const Player: React.FC = () => {
   const setCurrentIndex = useSetAtom(currentIndexAtom);
   const [playMode, setPlayMode] = useState("listLoop");
   const [loaded, setLoaded] = useState(false);
+  const [hoverTime, setHoverTime] = useState<number | null>(null);
+  const sliderRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     (async () => {
@@ -129,6 +131,22 @@ const Player: React.FC = () => {
     }
   }, [currentTime]);
 
+  const handleSliderMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (sliderRef.current) {
+      const rect = sliderRef.current.getBoundingClientRect();
+      const percent = (event.clientX - rect.left) / rect.width;
+      const time = Math.max(
+        0,
+        Math.min(currentMusic.duration, percent * currentMusic.duration),
+      );
+      setHoverTime(time);
+    }
+  };
+
+  const handleSliderMouseLeave = () => {
+    setHoverTime(null);
+  };
+
   return (
     <Box
       height="60px"
@@ -146,29 +164,79 @@ const Player: React.FC = () => {
       <SongInfo title={currentMusic.title} artist={currentMusic.artist} />
       {/* 进度条 */}
       <Box flex={1} mx={2} display="flex" alignItems="center" gap={1}>
-        <Typography variant="body2" minWidth={40}>
+        <Typography variant="body2" minWidth={40} sx={{ fontSize: "0.75rem" }}>
           {formatTime(currentTime)}
         </Typography>
-        <Slider
-          max={currentMusic.duration}
-          value={currentTime}
-          onChange={(_, value) => {
-            invoke("seek_music", { value: value });
-            setCurrentTime(value);
-          }}
-          aria-labelledby="progress-slider"
-          sx={{
-            flex: 1,
-            color: "primary.main",
-            height: 4,
-            "& .MuiSlider-thumb": {
-              width: 12,
-              height: 12,
-            },
-          }}
-        />
+        <Box
+          ref={sliderRef}
+          flex={1}
+          position="relative"
+          onMouseMove={handleSliderMouseMove}
+          onMouseLeave={handleSliderMouseLeave}
+        >
+          <Slider
+            max={currentMusic.duration}
+            value={currentTime}
+            onChange={(_, value) => {
+              invoke("seek_music", { value: value });
+              setCurrentTime(value as number);
+            }}
+            aria-labelledby="progress-slider"
+            sx={{
+              width: "100%",
+              color: "primary.main",
+              height: 4,
+              "& .MuiSlider-thumb": {
+                width: 12,
+                height: 12,
+                transition: "all 0.2s ease",
+                "&:hover": {
+                  boxShadow: "0 0 0 8px rgba(25, 118, 210, 0.16)",
+                },
+              },
+              "& .MuiSlider-track": {
+                transition: "all 0.2s ease",
+              },
+              "& .MuiSlider-rail": {
+                opacity: 0.3,
+              },
+              "&:hover": {
+                "& .MuiSlider-track": {
+                  height: 6,
+                },
+                "& .MuiSlider-rail": {
+                  height: 6,
+                },
+                "& .MuiSlider-thumb": {
+                  width: 14,
+                  height: 14,
+                },
+              },
+            }}
+          />
+          {hoverTime !== null && (
+            <Box
+              sx={{
+                position: "absolute",
+                bottom: 30,
+                left: `${(hoverTime / currentMusic.duration) * 100}%`,
+                transform: "translateX(-50%)",
+                bgcolor: "rgba(0, 0, 0, 0.8)",
+                color: "white",
+                px: 1,
+                py: 0.5,
+                borderRadius: 1,
+                fontSize: "0.7rem",
+                pointerEvents: "none",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {formatTime(hoverTime)}
+            </Box>
+          )}
+        </Box>
 
-        <Typography variant="body2" minWidth={40}>
+        <Typography variant="body2" minWidth={40} sx={{ fontSize: "0.75rem" }}>
           -{formatTime(Math.max(0, currentMusic.duration - currentTime))}
         </Typography>
       </Box>
@@ -178,19 +246,52 @@ const Player: React.FC = () => {
       <PlayModeButton onPlayModeChange={setPlayMode} />
       {/* 播放按钮 */}
       <Box display="flex" alignItems="center">
-        <IconButton onClick={playPreSong}>
-          <SkipPreIcon fontSize="large" />
-        </IconButton>
-        <IconButton onClick={togglePlay}>
-          {isPlaying ? (
-            <PauseIcon fontSize="large" />
-          ) : (
-            <PlayArrowIcon fontSize="large" />
-          )}
-        </IconButton>
-        <IconButton onClick={playNextSong}>
-          <SkipNextIcon fontSize="large" />
-        </IconButton>
+        <Tooltip title="上一首" arrow>
+          <IconButton
+            onClick={playPreSong}
+            sx={{
+              transition: "all 0.2s ease",
+              "&:hover": {
+                transform: "scale(1.1)",
+                bgcolor: "rgba(0, 0, 0, 0.04)",
+              },
+            }}
+          >
+            <SkipPreIcon fontSize="large" />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title={isPlaying ? "暂停" : "播放"} arrow>
+          <IconButton
+            onClick={togglePlay}
+            sx={{
+              transition: "all 0.2s ease",
+              "&:hover": {
+                transform: "scale(1.1)",
+                bgcolor: "rgba(0, 0, 0, 0.04)",
+              },
+            }}
+          >
+            {isPlaying ? (
+              <PauseIcon fontSize="large" />
+            ) : (
+              <PlayArrowIcon fontSize="large" />
+            )}
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="下一首" arrow>
+          <IconButton
+            onClick={playNextSong}
+            sx={{
+              transition: "all 0.2s ease",
+              "&:hover": {
+                transform: "scale(1.1)",
+                bgcolor: "rgba(0, 0, 0, 0.04)",
+              },
+            }}
+          >
+            <SkipNextIcon fontSize="large" />
+          </IconButton>
+        </Tooltip>
       </Box>
     </Box>
   );

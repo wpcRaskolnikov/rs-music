@@ -1,18 +1,20 @@
 import { invoke } from "@tauri-apps/api/core";
 import { load } from "@tauri-apps/plugin-store";
 import React from "react";
-import { Box, IconButton, Slider } from "@mui/material";
+import { Box, IconButton, Slider, Typography, Paper } from "@mui/material";
 import {
   VolumeUp as VolumeUpIcon,
   VolumeOff as VolumeOffIcon,
+  VolumeDown as VolumeDownIcon,
 } from "@mui/icons-material";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const VolumeControl: React.FC = () => {
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const timeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -56,31 +58,70 @@ const VolumeControl: React.FC = () => {
     setIsMuted(!isMuted);
   };
 
+  const handleMouseEnter = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    setShowVolumeSlider(true);
+  };
+
+  const handleMouseLeave = () => {
+    timeoutRef.current = setTimeout(() => {
+      setShowVolumeSlider(false);
+    }, 200);
+  };
+
+  const getVolumeIcon = () => {
+    if (isMuted || volume === 0) {
+      return <VolumeOffIcon />;
+    } else if (volume < 0.5) {
+      return <VolumeDownIcon />;
+    }
+    return <VolumeUpIcon />;
+  };
+
   return (
     <Box
       position="relative"
-      onMouseEnter={() => setShowVolumeSlider(true)}
-      onMouseLeave={() => setShowVolumeSlider(false)}
       display="flex"
       alignItems="center"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       <IconButton onClick={toggleMute} size="small">
-        {isMuted || volume === 0 ? <VolumeOffIcon /> : <VolumeUpIcon />}
+        {getVolumeIcon()}
       </IconButton>
 
       {showVolumeSlider && (
-        <Box
+        <Paper
+          elevation={3}
           sx={{
             position: "absolute",
             bottom: 30,
             left: "50%",
             transform: "translateX(-50%)",
-            p: 1,
+            px: 0.5,
+            pt: 0.5,
+            pb: 1,
             display: "flex",
+            flexDirection: "column",
             alignItems: "center",
-            height: 100,
+            height: 130,
+            borderRadius: 2,
+            bgcolor: "background.paper",
           }}
         >
+          <Typography
+            variant="caption"
+            sx={{
+              mb: 0.5,
+              fontWeight: 500,
+              color: "primary.main",
+              fontSize: "0.75rem",
+            }}
+          >
+            {Math.round(volume * 100)}%
+          </Typography>
           <Slider
             orientation="vertical"
             min={0}
@@ -88,15 +129,30 @@ const VolumeControl: React.FC = () => {
             step={0.01}
             value={volume}
             onChange={(_, val) => {
-              updateVolume(val);
+              updateVolume(val as number);
               if (val === 0) {
                 setIsMuted(true);
               } else {
                 setIsMuted(false);
               }
             }}
+            sx={{
+              flex: 1,
+              color: "primary.main",
+              "& .MuiSlider-thumb": {
+                width: 14,
+                height: 14,
+              },
+              "& .MuiSlider-track": {
+                width: 4,
+              },
+              "& .MuiSlider-rail": {
+                width: 4,
+                opacity: 0.3,
+              },
+            }}
           />
-        </Box>
+        </Paper>
       )}
     </Box>
   );

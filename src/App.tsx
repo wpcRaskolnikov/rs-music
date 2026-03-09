@@ -3,7 +3,7 @@ import { Box, CssBaseline } from "@mui/material";
 import Aside from "./layout/Aside";
 import Player from "./layout/Player";
 import Search from "./components/Search"; // 导入新组件
-import {  DownloadList, SongList, Setting, SearchList } from "./views";
+import { DownloadList, SongList, Setting, SearchList } from "./views";
 import { Routes, Route } from "react-router";
 import Ranking from "./views/Ranking";
 const App: React.FC = () => {
@@ -18,7 +18,7 @@ const App: React.FC = () => {
           <Search />
 
           {/* 内容显示区 */}
-          <Box flex={1} p={2} overflow="auto" bgcolor="white">
+          <Box flex={1} overflow="auto" bgcolor="white">
             <Routes>
               <Route index element={<SearchList />} />
               <Route path="/search" element={<SearchList />} />

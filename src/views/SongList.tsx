@@ -39,7 +39,7 @@ const SongList: React.FC = () => {
 
   const handleContextMenu = (
     event: React.MouseEvent<HTMLElement>,
-    menu: PlaylistMenu
+    menu: PlaylistMenu,
   ) => {
     event.preventDefault();
     setAnchorEl(event.currentTarget);
@@ -88,7 +88,7 @@ const SongList: React.FC = () => {
       currentMenu.playlistId,
     ]);
     setPlaylistMenus((prev) =>
-      prev.filter((p) => p.playlistId !== currentMenu.playlistId)
+      prev.filter((p) => p.playlistId !== currentMenu.playlistId),
     );
     if (playlistId === currentMenu.playlistId) {
       setPlaylistId(playlistMenus[0].playlistId);
@@ -100,7 +100,7 @@ const SongList: React.FC = () => {
     (async () => {
       const db = await Database.load("sqlite:db.sqlite");
       const rows = await db.select<typeof playlistMenus>(
-        `SELECT label, playlist_id AS playlistId FROM playlist`
+        `SELECT label, playlist_id AS playlistId FROM playlist`,
       );
       if (rows) {
         setPlaylistMenus(rows);
@@ -116,7 +116,7 @@ const SongList: React.FC = () => {
       const db = await Database.load("sqlite:db.sqlite");
       const rows = await db.select<typeof list>(
         "SELECT * FROM music WHERE playlist_id = ?",
-        [playlistId]
+        [playlistId],
       );
       setList(rows);
     })();
@@ -127,14 +127,24 @@ const SongList: React.FC = () => {
       <List
         dense
         sx={{
-          width: "110px",
+          width: "150px",
           bgcolor: "background.paper",
           position: "relative",
           overflow: "auto",
           p: 0,
+          pt: 2,
+          borderRight: "1px solid #e0e0e0",
         }}
       >
-        <ListSubheader sx={{ lineHeight: "36px", px: 0 }}>
+        <ListSubheader
+          sx={{
+            px: 2,
+            py: "6px",
+            lineHeight: "normal",
+            position: "static",
+            bgcolor: "background.paper",
+          }}
+        >
           <Box
             display="flex"
             justifyContent="space-between"
@@ -145,14 +155,14 @@ const SongList: React.FC = () => {
               <PlaylistAddIcon fontSize="small" />
             </IconButton>
           </Box>
-          <Divider />
         </ListSubheader>
+        <Divider />
 
         {playlistMenus.map((menu) => (
           <ListItem key={menu.playlistId} disablePadding>
             <ListItemButton
               selected={playlistId === menu.playlistId}
-              sx={{ px: 0 }}
+              sx={{ px: 2 }}
               onClick={() => setPlaylistId(menu.playlistId)}
               onContextMenu={(e) => handleContextMenu(e, menu)}
             >
