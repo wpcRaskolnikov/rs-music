@@ -1,8 +1,3 @@
-export {
-  currentMusicAtom,
-  currentIndexAtom,
-  playListAtom,
-  triggerAtom,
-} from "./playerAtom";
+export { isPlayingAtom } from "./playerAtom";
 
 export type { MusicMetadata } from "./playerAtom";

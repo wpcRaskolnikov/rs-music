@@ -1,5 +1,6 @@
 mod db;
 mod music;
+mod utils;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -7,8 +8,8 @@ pub fn run() {
         .plugin(tauri_plugin_sql::Builder::new().build())
         .plugin(tauri_plugin_store::Builder::new().build())
         .setup(|app| {
-            music::init_music_thread();
-            let _ = tauri::async_runtime::block_on(db::setup_db(app.handle()));
+            let db = tauri::async_runtime::block_on(db::setup_db(app.handle()));
+            music::init_music_thread(db, app.handle().clone());
             Ok(())
         })
         .plugin(tauri_plugin_fs::init())
@@ -22,6 +23,9 @@ pub fn run() {
             music::get_album_cover,
             music::seek_music,
             music::set_volume,
+            music::set_play_mode,
+            music::play_next,
+            music::play_prev,
             db::add_music_files,
             db::add_music_folder,
         ])

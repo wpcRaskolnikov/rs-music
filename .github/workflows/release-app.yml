@@ -56,7 +56,7 @@ jobs:
         with:
           projectPath: ./
           tagName: ${{ github.ref_name }}
-          releaseName: "rs-music App ${{ github.ref_name }}"
+          releaseName: "rs-music ${{ github.ref_name }}"
           releaseBody: "See the assets to download and install this version."
           releaseDraft: false
           prerelease: false

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   Box,
   Table,
@@ -12,21 +12,34 @@ import {
 import HeadphonesIcon from "@mui/icons-material/Headphones";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EmptyText from "../EmptyText";
-import { currentIndexAtom, triggerAtom, playListAtom } from "../../store";
+import { isPlayingAtom } from "../../store";
 import { useSetAtom } from "jotai";
 import { MusicMetadata } from "../../store";
+import Database from "@tauri-apps/plugin-sql";
+import { invoke } from "@tauri-apps/api/core";
+import { formatTime } from "../../utils";
 
 const SongTable: React.FC<{
-  list: MusicMetadata[];
-}> = ({ list }) => {
-  const setCurrentIndex = useSetAtom(currentIndexAtom);
-  const setTrigger = useSetAtom(triggerAtom);
-  const setPlayList = useSetAtom(playListAtom);
+  playlistId: string;
+}> = ({ playlistId }) => {
+  const [list, setList] = useState<MusicMetadata[]>([]);
+  const setIsPlaying = useSetAtom(isPlayingAtom);
+
+  useEffect(() => {
+    if (!playlistId) return;
+    (async () => {
+      const db = await Database.load("sqlite:db.sqlite");
+      const rows = await db.select<MusicMetadata[]>(
+        "SELECT * FROM music WHERE playlist_id = ?",
+        [playlistId],
+      );
+      setList(rows);
+    })();
+  }, [playlistId]);
 
   const handlePlay = (index: number) => {
-    setCurrentIndex(index);
-    setPlayList(list);
-    setTrigger((pre) => !pre);
+    setIsPlaying(true);
+    invoke("play_music", { playlistId, index });
   };
 
   const handleRemove = async (index: number) => {
@@ -67,7 +80,7 @@ const SongTable: React.FC<{
                       </IconButton>
                     </Box>
                   </TableCell>
-                  <TableCell>{item.duration}</TableCell>
+                  <TableCell>{formatTime(item.duration)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

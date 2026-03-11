@@ -1,8 +1,7 @@
-use crate::music;
+use crate::utils;
+use sqlx::{Pool, Sqlite, migrate::MigrateDatabase, sqlite::SqlitePoolOptions};
 use tauri::Manager as _;
-
-use sqlx::{migrate::MigrateDatabase, sqlite::SqlitePoolOptions, Pool, Sqlite};
-type Db = Pool<Sqlite>;
+pub type Db = Pool<Sqlite>;
 
 pub async fn setup_db(app: &tauri::AppHandle) -> Db {
     let mut path = app.path().app_config_dir().expect("failed to get data_dir");
@@ -40,7 +39,7 @@ pub async fn add_music_files(app_handle: tauri::AppHandle, path: Vec<String>, pl
 
     for file_str in path {
         println!("Found file: {}", file_str);
-        let music_metadata = music::parse_music_metadata(&file_str);
+        let music_metadata = utils::parse_music_metadata(&file_str);
         sqlx::query(
                     "INSERT OR REPLACE INTO music (src, title, artist, album, duration, playlist_id) VALUES (?, ?, ?, ?, ?,?)"
                 )
@@ -48,7 +47,7 @@ pub async fn add_music_files(app_handle: tauri::AppHandle, path: Vec<String>, pl
                 .bind(&music_metadata.title)
                 .bind(&music_metadata.artist)
                 .bind(&music_metadata.album)
-                .bind(music_metadata.duration as i64)
+                .bind(music_metadata.duration)
                 .bind(&playlist_id)
                 .execute(&db)
                 .await
@@ -65,7 +64,7 @@ pub async fn add_music_folder(app_handle: tauri::AppHandle, path: String, playli
         let path = entry.expect("Failed to match");
         let file_str = path.to_string_lossy().to_string();
         println!("Found file: {}", file_str);
-        let music_metadata = music::parse_music_metadata(&file_str);
+        let music_metadata = utils::parse_music_metadata(&file_str);
 
         sqlx::query(
                     "INSERT OR REPLACE INTO music (src, title, artist, album, duration, playlist_id) VALUES (?, ?, ?, ?, ?,?)"

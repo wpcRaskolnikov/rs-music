@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import { load } from "@tauri-apps/plugin-store";
 import React from "react";
 import { IconButton, Tooltip } from "@mui/material";
@@ -8,9 +9,7 @@ import {
 } from "@mui/icons-material";
 import { useState, useEffect } from "react";
 
-const PlayModeButton: React.FC<{
-  onPlayModeChange: (mode: string) => void;
-}> = ({ onPlayModeChange }) => {
+const PlayModeButton: React.FC = () => {
   const [playMode, setPlayMode] = useState("listLoop");
   const [loaded, setLoaded] = useState(false);
 
@@ -30,7 +29,7 @@ const PlayModeButton: React.FC<{
       if (!loaded) {
         return;
       }
-      onPlayModeChange(playMode);
+      invoke("set_play_mode", { mode: playMode });
       const store = await load("settings.json");
       store.set("playMode", playMode);
     })();

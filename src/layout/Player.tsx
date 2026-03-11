@@ -1,135 +1,65 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { load } from "@tauri-apps/plugin-store";
+import Database from "@tauri-apps/plugin-sql";
 import React, { useState, useEffect, useRef } from "react";
-import { Box, IconButton, Typography, Slider, Tooltip } from "@mui/material";
-import {
-  SkipPrevious as SkipPreIcon,
-  PlayArrow as PlayArrowIcon,
-  Pause as PauseIcon,
-  SkipNext as SkipNextIcon,
-} from "@mui/icons-material";
+import { Box, Typography, Slider } from "@mui/material";
 import {
   AlbumCover,
   SongInfo,
   VolumeControl,
   PlayModeButton,
+  PlayControls,
 } from "../components";
-import {
-  currentMusicAtom,
-  currentIndexAtom,
-  playListAtom,
-  triggerAtom,
-} from "../store";
-import { useAtomValue, useAtom, useSetAtom } from "jotai";
+import { MusicMetadata } from "../store";
 import { formatTime } from "../utils";
 
 const Player: React.FC = () => {
-  const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const intervalRef = useRef<number>(0);
-  const [trigger, setTrigger] = useAtom(triggerAtom);
-  const currentMusic = useAtomValue(currentMusicAtom);
-  const [playlist, setPlayList] = useAtom(playListAtom);
-  const setCurrentIndex = useSetAtom(currentIndexAtom);
-  const [playMode, setPlayMode] = useState("listLoop");
-  const [loaded, setLoaded] = useState(false);
+  const [currentMusic, setCurrentMusic] = useState<MusicMetadata>({
+    src: "",
+    title: "Unknown title",
+    artist: "Unknown artist",
+    album: "Unknown album",
+    duration: 240,
+  });
   const [hoverTime, setHoverTime] = useState<number | null>(null);
   const sliderRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     (async () => {
       const store = await load("last_played.json");
-      const val = await store.get<typeof currentMusic>("song");
-      if (val) {
-        setPlayList([val]);
-        setCurrentIndex(0);
+      const playlistId = await store.get<string>("playlist_id");
+      const index = await store.get<number>("index");
+      if (playlistId != null && index != null) {
+        const db = await Database.load("sqlite:db.sqlite");
+        const rows = await db.select<MusicMetadata[]>(
+          "SELECT src, title, artist, album, duration FROM music WHERE playlist_id = ? LIMIT 1 OFFSET ?",
+          [playlistId, index],
+        );
+        if (rows.length > 0) setCurrentMusic(rows[0]);
       }
-      setLoaded(true);
     })();
   }, []);
 
   useEffect(() => {
-    (async () => {
-      if (!loaded) {
-        return;
-      }
-      invoke("play_music", { path: currentMusic.src });
-      setIsPlaying(true);
-      setCurrentTime(0);
-      const store = await load("last_played.json");
-      store.set("song", currentMusic);
-    })();
-  }, [loaded, trigger]);
-
-  const playPreSong = () => {
-    invoke("stop_music");
-    switch (playMode) {
-      case "listLoop": {
-        setCurrentIndex((prev) => (prev - 1) % playlist.length);
-        setTrigger((pre) => !pre);
-        break;
-      }
-      case "random": {
-        setCurrentIndex(() => Math.floor(Math.random() * playlist.length));
-        setTrigger((pre) => !pre);
-        break;
-      }
-      case "singleLoop": {
-        setCurrentIndex((prev) => prev);
-        setTrigger((pre) => !pre);
-        break;
-      }
-    }
-    setCurrentTime(0);
-  };
-
-  const playNextSong = () => {
-    invoke("stop_music");
-    switch (playMode) {
-      case "listLoop": {
-        setCurrentIndex((prev) => (prev + 1) % playlist.length);
-        setTrigger((pre) => !pre);
-        break;
-      }
-      case "random": {
-        setCurrentIndex(() => Math.floor(Math.random() * playlist.length));
-        setTrigger((pre) => !pre);
-        break;
-      }
-      case "singleLoop": {
-        setCurrentIndex((prev) => prev);
-        setTrigger((pre) => !pre);
-        break;
-      }
-    }
-    setCurrentTime(0);
-  };
-
-  const togglePlay = () => {
-    if (isPlaying) {
-      invoke("pause_music");
-    } else {
-      invoke("resume_music");
-    }
-    setIsPlaying(!isPlaying);
-  };
-
-  useEffect(() => {
-    if (isPlaying) {
-      intervalRef.current = setInterval(() => {
-        setCurrentTime((prev) => prev + 0.5);
-      }, 500);
-    }
+    const unlisten = listen<number>("play-tick", (event) => {
+      setCurrentTime(event.payload);
+    });
     return () => {
-      clearInterval(intervalRef.current as any);
+      unlisten.then((f) => f());
     };
-  }, [isPlaying]);
+  }, []);
 
   useEffect(() => {
-    if (currentTime >= currentMusic.duration) {
-      playNextSong();
-    }
-  }, [currentTime]);
+    const unlisten = listen<MusicMetadata>("current-music-changed", (event) => {
+      setCurrentMusic(event.payload);
+      setCurrentTime(0);
+    });
+    return () => {
+      unlisten.then((f) => f());
+    };
+  }, []);
 
   const handleSliderMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
     if (sliderRef.current) {
@@ -243,56 +173,9 @@ const Player: React.FC = () => {
       {/* 音量控制 */}
       <VolumeControl />
       {/* 播放模式 */}
-      <PlayModeButton onPlayModeChange={setPlayMode} />
+      <PlayModeButton />
       {/* 播放按钮 */}
-      <Box display="flex" alignItems="center">
-        <Tooltip title="上一首" arrow>
-          <IconButton
-            onClick={playPreSong}
-            sx={{
-              transition: "all 0.2s ease",
-              "&:hover": {
-                transform: "scale(1.1)",
-                bgcolor: "rgba(0, 0, 0, 0.04)",
-              },
-            }}
-          >
-            <SkipPreIcon fontSize="large" />
-          </IconButton>
-        </Tooltip>
-        <Tooltip title={isPlaying ? "暂停" : "播放"} arrow>
-          <IconButton
-            onClick={togglePlay}
-            sx={{
-              transition: "all 0.2s ease",
-              "&:hover": {
-                transform: "scale(1.1)",
-                bgcolor: "rgba(0, 0, 0, 0.04)",
-              },
-            }}
-          >
-            {isPlaying ? (
-              <PauseIcon fontSize="large" />
-            ) : (
-              <PlayArrowIcon fontSize="large" />
-            )}
-          </IconButton>
-        </Tooltip>
-        <Tooltip title="下一首" arrow>
-          <IconButton
-            onClick={playNextSong}
-            sx={{
-              transition: "all 0.2s ease",
-              "&:hover": {
-                transform: "scale(1.1)",
-                bgcolor: "rgba(0, 0, 0, 0.04)",
-              },
-            }}
-          >
-            <SkipNextIcon fontSize="large" />
-          </IconButton>
-        </Tooltip>
-      </Box>
+      <PlayControls />
     </Box>
   );
 };

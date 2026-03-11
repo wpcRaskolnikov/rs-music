@@ -1,31 +1,29 @@
-
 use lofty::file::TaggedFileExt;
 use lofty::prelude::*;
 use lofty::probe::Probe;
-use lofty::read_from_path;
-
 use serde::{Deserialize, Serialize};
-use serde_json::json;
-use tauri_plugin_store::StoreExt;
+use std::path::Path;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-struct MusicMetadata {
-    title: String,
-    artist: String,
-    album: String,
-    duration: u64,
+#[derive(Clone, Debug, Serialize, Deserialize, sqlx::FromRow)]
+pub struct MusicMetadata {
+    pub src: String,
+    pub title: String,
+    pub artist: String,
+    pub album: String,
+    pub duration: i64,
 }
 
-fn parse_music_metadata(path: &str) -> MusicMetadata {
+pub fn parse_music_metadata(path: &str) -> MusicMetadata {
     let tagged_file = Probe::open(Path::new(path))
         .expect("ERROR: Bad path provided!")
         .read()
         .expect("ERROR: Failed to read file!");
-    let duration = tagged_file.properties().duration().as_secs();
+    let duration = tagged_file.properties().duration().as_secs() as i64;
     let tag = tagged_file
         .primary_tag()
         .expect("ERROR: Failed to get tag!");
     return MusicMetadata {
+        src: path.to_string(),
         title: tag
             .title()
             .as_deref()

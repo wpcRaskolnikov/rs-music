@@ -15,7 +15,6 @@ import {
 import { SongTable, AddPlaylistDialog } from "../components";
 import PlaylistAddIcon from "@mui/icons-material/PlaylistAdd";
 import Database from "@tauri-apps/plugin-sql";
-import { MusicMetadata } from "../store";
 import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -25,8 +24,6 @@ export interface PlaylistMenu {
 }
 
 const SongList: React.FC = () => {
-  const [loaded, setLoaded] = useState(false);
-  const [list, setList] = useState<MusicMetadata[]>([]);
   const [playlistMenus, setPlaylistMenus] = useState<PlaylistMenu[]>([]);
   const [playlistId, setPlaylistId] = useState("");
   const [openDialog, setOpenDialog] = useState(false);
@@ -106,21 +103,8 @@ const SongList: React.FC = () => {
         setPlaylistMenus(rows);
         setPlaylistId(rows[0].playlistId);
       }
-      setLoaded(true);
     })();
   }, []);
-
-  useEffect(() => {
-    (async () => {
-      if (!loaded) return;
-      const db = await Database.load("sqlite:db.sqlite");
-      const rows = await db.select<typeof list>(
-        "SELECT * FROM music WHERE playlist_id = ?",
-        [playlistId],
-      );
-      setList(rows);
-    })();
-  }, [loaded, playlistId]);
 
   return (
     <Box display="flex" height="100%">
@@ -184,7 +168,7 @@ const SongList: React.FC = () => {
         </Menu>
       </List>
 
-      <SongTable list={list} />
+      <SongTable playlistId={playlistId} />
 
       <AddPlaylistDialog
         open={openDialog}
