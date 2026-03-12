@@ -3,6 +3,9 @@ import { listen } from "@tauri-apps/api/event";
 import { load } from "@tauri-apps/plugin-store";
 import Database from "@tauri-apps/plugin-sql";
 import React, { useState, useEffect, useRef } from "react";
+import { useAtom } from "jotai";
+import { isPlayingAtom, volumeAtom, isMutedAtom } from "../store";
+import { useLatest } from "../utils";
 import { Box, Typography, Slider } from "@mui/material";
 import {
   AlbumCover,
@@ -25,6 +28,41 @@ const Player: React.FC = () => {
   });
   const [hoverTime, setHoverTime] = useState<number | null>(null);
   const sliderRef = useRef<HTMLDivElement>(null);
+
+  const [isPlaying, setIsPlaying] = useAtom(isPlayingAtom);
+  const [volume] = useAtom(volumeAtom);
+  const [isMuted, setIsMuted] = useAtom(isMutedAtom);
+  const isPlayingRef = useLatest(isPlaying);
+  const volumeRef = useLatest(volume);
+  const isMutedRef = useLatest(isMuted);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      )
+        return;
+      if (e.code === "Space") {
+        e.preventDefault();
+        if (isPlayingRef.current) {
+          invoke("pause_music");
+        } else {
+          invoke("resume_music");
+        }
+        setIsPlaying((prev) => !prev);
+      } else if (e.code === "KeyM") {
+        if (isMutedRef.current) {
+          invoke("set_volume", { value: volumeRef.current });
+        } else {
+          invoke("set_volume", { value: 0 });
+        }
+        setIsMuted((prev) => !prev);
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   useEffect(() => {
     (async () => {

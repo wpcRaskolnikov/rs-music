@@ -1,3 +1,5 @@
+import { useRef, useEffect } from "react";
+
 const formatTime = (sec: number) => {
   const m = Math.floor(sec / 60)
     .toString()
@@ -8,4 +10,12 @@ const formatTime = (sec: number) => {
   return `${m}:${s}`;
 };
 
-export {formatTime};
+export function useLatest<T>(value: T) {
+  const ref = useRef(value);
+  useEffect(() => {
+    ref.current = value;
+  });
+  return ref;
+}
+
+export { formatTime };

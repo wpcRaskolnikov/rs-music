@@ -1,7 +1,14 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Box, Button, Typography } from "@mui/material";
+import { getVersion } from "@tauri-apps/api/app";
 
 const Setting: React.FC = () => {
+  const [version, setVersion] = useState("");
+
+  useEffect(() => {
+    getVersion().then(setVersion);
+  }, []);
+
   return (
     <Box sx={{ padding: 2, overflowY: "auto", height: "100%" }}>
       {/* 备份与恢复 */}
@@ -16,6 +23,9 @@ const Setting: React.FC = () => {
           导出设置
         </Button>
       </Box>
+      <Typography variant="caption" color="text.secondary">
+        rs-music v{version}
+      </Typography>
     </Box>
   );
 };

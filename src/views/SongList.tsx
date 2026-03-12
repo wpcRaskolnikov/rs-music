@@ -12,11 +12,14 @@ import {
   MenuList,
   MenuItem,
 } from "@mui/material";
-import { SongTable, AddPlaylistDialog } from "../components";
+import { SongTable, NewPlaylistDialog } from "../components";
 import PlaylistAddIcon from "@mui/icons-material/PlaylistAdd";
 import Database from "@tauri-apps/plugin-sql";
 import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
+import { useSetAtom } from "jotai";
+import { v4 as uuidv4 } from "uuid";
+import { MusicMetadata, isPlayingAtom } from "../store";
 
 export interface PlaylistMenu {
   label: string;
@@ -27,12 +30,22 @@ const SongList: React.FC = () => {
   const [playlistMenus, setPlaylistMenus] = useState<PlaylistMenu[]>([]);
   const [playlistId, setPlaylistId] = useState("");
   const [openDialog, setOpenDialog] = useState(false);
-
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
   const [currentMenu, setCurrentMenu] = useState<PlaylistMenu>({
     label: "全部音乐",
     playlistId: "music",
   });
+  const [songList, setSongList] = useState<MusicMetadata[]>([]);
+  const setIsPlaying = useSetAtom(isPlayingAtom);
+
+  const loadSongs = async (id: string) => {
+    const db = await Database.load("sqlite:db.sqlite");
+    const rows = await db.select<MusicMetadata[]>(
+      "SELECT * FROM music WHERE playlist_id = ?",
+      [id],
+    );
+    setSongList(rows);
+  };
 
   const handleContextMenu = (
     event: React.MouseEvent<HTMLElement>,
@@ -48,32 +61,51 @@ const SongList: React.FC = () => {
       multiple: true,
       directory: false,
       filters: [
-        {
-          name: "音乐文件",
-          extensions: ["mp3", "flac", "wav", "m4a"],
-        },
+        { name: "音乐文件", extensions: ["mp3", "flac", "wav", "m4a"] },
       ],
     });
-    if (!file) {
-      return;
-    }
-    invoke("add_music_files", {
+    if (!file) return;
+    await invoke("add_music_files", {
       path: file,
       playlistId: currentMenu.playlistId,
     });
+    loadSongs(playlistId);
     setAnchorEl(null);
   };
 
   const handlePickFolder = async () => {
     const file = await open({ multiple: false, directory: true });
-    if (!file) {
-      return;
-    }
-    invoke("add_music_folder", {
+    if (!file) return;
+    await invoke("add_music_folder", {
       path: file,
       playlistId: currentMenu.playlistId,
     });
+    loadSongs(playlistId);
     setAnchorEl(null);
+  };
+
+  const handlePlay = (index: number) => {
+    setIsPlaying(true);
+    invoke("play_music", { playlistId, index });
+  };
+
+  const handleRemoveSong = async (src: string) => {
+    const db = await Database.load("sqlite:db.sqlite");
+    await db.execute("DELETE FROM music WHERE playlist_id = ? AND src = ?", [
+      playlistId,
+      src,
+    ]);
+    setSongList((prev) => prev.filter((s) => s.src !== src));
+  };
+
+  const handleCreatePlaylist = async (label: string) => {
+    const newPlaylistId = "playlist_" + uuidv4();
+    const db = await Database.load("sqlite:db.sqlite");
+    await db.execute(
+      "INSERT INTO playlist (label, playlist_id) VALUES (?, ?)",
+      [label, newPlaylistId],
+    );
+    setPlaylistMenus((prev) => [...prev, { label, playlistId: newPlaylistId }]);
   };
 
   const handleRemovePlaylist = async () => {
@@ -99,12 +131,17 @@ const SongList: React.FC = () => {
       const rows = await db.select<typeof playlistMenus>(
         `SELECT label, playlist_id AS playlistId FROM playlist`,
       );
-      if (rows) {
+      if (rows?.length) {
         setPlaylistMenus(rows);
         setPlaylistId(rows[0].playlistId);
       }
     })();
   }, []);
+
+  useEffect(() => {
+    if (!playlistId) return;
+    loadSongs(playlistId);
+  }, [playlistId]);
 
   return (
     <Box display="flex" height="100%">
@@ -168,14 +205,16 @@ const SongList: React.FC = () => {
         </Menu>
       </List>
 
-      <SongTable playlistId={playlistId} />
+      <SongTable
+        list={songList}
+        onPlay={handlePlay}
+        onRemove={handleRemoveSong}
+      />
 
-      <AddPlaylistDialog
+      <NewPlaylistDialog
         open={openDialog}
         onClose={() => setOpenDialog(false)}
-        onAddPlaylist={(playlist) =>
-          setPlaylistMenus((prev) => [...prev, playlist])
-        }
+        onCreate={handleCreatePlaylist}
       />
     </Box>
   );

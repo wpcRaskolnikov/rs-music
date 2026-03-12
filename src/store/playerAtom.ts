@@ -9,3 +9,5 @@ export interface MusicMetadata {
 }
 
 export const isPlayingAtom = atom(false);
+export const volumeAtom = atom(1);
+export const isMutedAtom = atom(false);

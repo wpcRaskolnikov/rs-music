@@ -8,4 +8,4 @@ export { default as PlayModeButton } from "./player/PlayModeButton";
 export { default as PlayControls } from "./player/PlayControls";
 
 export { default as SongTable } from "./songlist/SongTable";
-export { default as AddPlaylistDialog } from "./songlist/AddPlaylistDialog";
+export { default as NewPlaylistDialog } from "./songlist/NewPlaylistDialog";

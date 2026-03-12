@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import {
   Box,
   Table,
@@ -12,40 +12,14 @@ import {
 import HeadphonesIcon from "@mui/icons-material/Headphones";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EmptyText from "../EmptyText";
-import { isPlayingAtom } from "../../store";
-import { useSetAtom } from "jotai";
 import { MusicMetadata } from "../../store";
-import Database from "@tauri-apps/plugin-sql";
-import { invoke } from "@tauri-apps/api/core";
 import { formatTime } from "../../utils";
 
 const SongTable: React.FC<{
-  playlistId: string;
-}> = ({ playlistId }) => {
-  const [list, setList] = useState<MusicMetadata[]>([]);
-  const setIsPlaying = useSetAtom(isPlayingAtom);
-
-  useEffect(() => {
-    if (!playlistId) return;
-    (async () => {
-      const db = await Database.load("sqlite:db.sqlite");
-      const rows = await db.select<MusicMetadata[]>(
-        "SELECT * FROM music WHERE playlist_id = ?",
-        [playlistId],
-      );
-      setList(rows);
-    })();
-  }, [playlistId]);
-
-  const handlePlay = (index: number) => {
-    setIsPlaying(true);
-    invoke("play_music", { playlistId, index });
-  };
-
-  const handleRemove = async (index: number) => {
-    console.log("删除", list[index]);
-  };
-
+  list: MusicMetadata[];
+  onPlay: (index: number) => void;
+  onRemove: (src: string) => void;
+}> = ({ list, onPlay, onRemove }) => {
   return (
     <Box sx={{ flex: 1, height: "100%", overflow: "hidden", p: 2 }}>
       {list.length ? (
@@ -65,17 +39,17 @@ const SongTable: React.FC<{
                 <TableRow
                   key={item.src}
                   hover
-                  onDoubleClick={() => handlePlay(index)}
+                  onDoubleClick={() => onPlay(index)}
                 >
                   <TableCell>{item.title}</TableCell>
                   <TableCell>{item.artist}</TableCell>
                   <TableCell>{item.album}</TableCell>
                   <TableCell align="center">
                     <Box display="flex">
-                      <IconButton onClick={() => handlePlay(index)}>
+                      <IconButton onClick={() => onPlay(index)}>
                         <HeadphonesIcon fontSize="small" />
                       </IconButton>
-                      <IconButton onClick={() => handleRemove(index)}>
+                      <IconButton onClick={() => onRemove(item.src)}>
                         <DeleteIcon fontSize="small" />
                       </IconButton>
                     </Box>
