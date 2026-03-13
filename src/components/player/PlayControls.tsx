@@ -1,6 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
-import React, { useEffect } from "react";
+import React from "react";
 import { Box, IconButton, Tooltip } from "@mui/material";
 import {
   SkipPrevious as SkipPreIcon,
@@ -21,15 +20,6 @@ const btnSx = {
 
 const PlayControls: React.FC = () => {
   const [isPlaying, setIsPlaying] = useAtom(isPlayingAtom);
-
-  useEffect(() => {
-    const unlisten = listen("current-music-changed", () => {
-      setIsPlaying(true);
-    });
-    return () => {
-      unlisten.then((f) => f());
-    };
-  }, []);
 
   const playPrev = () => {
     invoke("play_prev");

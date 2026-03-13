@@ -1,5 +1,4 @@
 import { invoke } from "@tauri-apps/api/core";
-import { load } from "@tauri-apps/plugin-store";
 import React from "react";
 import { IconButton, Tooltip } from "@mui/material";
 import {
@@ -7,50 +6,27 @@ import {
   Repeat as RepeatIcon,
   RepeatOne as RepeatOneIcon,
 } from "@mui/icons-material";
-import { useState, useEffect } from "react";
+import { useAtom } from "jotai";
+import { playModeAtom } from "../../store";
 
 const PlayModeButton: React.FC = () => {
-  const [playMode, setPlayMode] = useState("listLoop");
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    (async () => {
-      const store = await load("settings.json");
-      const val = await store.get<string>("playMode");
-      if (val) {
-        setPlayMode(val);
-      }
-      setLoaded(true);
-    })();
-  }, []);
-
-  useEffect(() => {
-    (async () => {
-      if (!loaded) {
-        return;
-      }
-      invoke("set_play_mode", { mode: playMode });
-      const store = await load("settings.json");
-      store.set("playMode", playMode);
-    })();
-  }, [loaded, playMode]);
+  const [playMode, setPlayMode] = useAtom(playModeAtom);
 
   const togglePlayMode = () => {
-    setPlayMode((prev) => {
-      let nextMode = "listLoop";
-      switch (prev) {
-        case "listLoop":
-          nextMode = "random";
-          break;
-        case "random":
-          nextMode = "singleLoop";
-          break;
-        case "singleLoop":
-          nextMode = "listLoop";
-          break;
-      }
-      return nextMode;
-    });
+    let nextMode = "listLoop";
+    switch (playMode) {
+      case "listLoop":
+        nextMode = "random";
+        break;
+      case "random":
+        nextMode = "singleLoop";
+        break;
+      case "singleLoop":
+        nextMode = "listLoop";
+        break;
+    }
+    setPlayMode(nextMode);
+    invoke("set_play_mode", { mode: nextMode });
   };
 
   const renderIcon = () => {

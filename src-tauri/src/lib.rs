@@ -1,5 +1,6 @@
 mod db;
 mod music;
+mod tray;
 mod utils;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -10,6 +11,7 @@ pub fn run() {
         .setup(|app| {
             let db = tauri::async_runtime::block_on(db::setup_db(app.handle()));
             music::init_music_thread(db, app.handle().clone());
+            tray::setup_tray(app)?;
             Ok(())
         })
         .plugin(tauri_plugin_fs::init())

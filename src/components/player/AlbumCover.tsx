@@ -8,16 +8,9 @@ const AlbumCover: React.FC<{ path: string }> = ({ path }) => {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const result = await invoke<string>("get_album_cover", {
-          path: path,
-        });
-        setCover(result);
-      } catch (error) {
-        console.error("获取封面失败:", error);
-      }
-    })();
+    invoke<string>("get_album_cover", { path })
+      .then(setCover)
+      .catch((error) => console.error("获取封面失败:", error));
   }, [path]);
 
   const handleOpen = () => setOpen(true);

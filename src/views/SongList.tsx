@@ -12,7 +12,7 @@ import {
   MenuList,
   MenuItem,
 } from "@mui/material";
-import { SongTable, NewPlaylistDialog } from "../components";
+import { SongTable, NewDialog, RenameDialog } from "../components";
 import PlaylistAddIcon from "@mui/icons-material/PlaylistAdd";
 import Database from "@tauri-apps/plugin-sql";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -30,6 +30,7 @@ const SongList: React.FC = () => {
   const [playlistMenus, setPlaylistMenus] = useState<PlaylistMenu[]>([]);
   const [playlistId, setPlaylistId] = useState("");
   const [openDialog, setOpenDialog] = useState(false);
+  const [openRenameDialog, setOpenRenameDialog] = useState(false);
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
   const [currentMenu, setCurrentMenu] = useState<PlaylistMenu>({
     label: "全部音乐",
@@ -106,6 +107,19 @@ const SongList: React.FC = () => {
       [label, newPlaylistId],
     );
     setPlaylistMenus((prev) => [...prev, { label, playlistId: newPlaylistId }]);
+  };
+
+  const handleRenamePlaylist = async (label: string) => {
+    const db = await Database.load("sqlite:db.sqlite");
+    await db.execute("UPDATE playlist SET label = ? WHERE playlist_id = ?", [
+      label,
+      currentMenu.playlistId,
+    ]);
+    setPlaylistMenus((prev) =>
+      prev.map((p) =>
+        p.playlistId === currentMenu.playlistId ? { ...p, label } : p,
+      ),
+    );
   };
 
   const handleRemovePlaylist = async () => {
@@ -200,6 +214,14 @@ const SongList: React.FC = () => {
           <MenuList dense sx={{ p: 0 }}>
             <MenuItem onClick={handlePickFile}>导入文件</MenuItem>
             <MenuItem onClick={handlePickFolder}>导入文件夹</MenuItem>
+            <MenuItem
+              onClick={() => {
+                setAnchorEl(null);
+                setOpenRenameDialog(true);
+              }}
+            >
+              重命名
+            </MenuItem>
             <MenuItem onClick={handleRemovePlaylist}>移除列表</MenuItem>
           </MenuList>
         </Menu>
@@ -211,10 +233,17 @@ const SongList: React.FC = () => {
         onRemove={handleRemoveSong}
       />
 
-      <NewPlaylistDialog
+      <NewDialog
         open={openDialog}
         onClose={() => setOpenDialog(false)}
         onCreate={handleCreatePlaylist}
+      />
+
+      <RenameDialog
+        open={openRenameDialog}
+        currentLabel={currentMenu.label}
+        onClose={() => setOpenRenameDialog(false)}
+        onRename={handleRenamePlaylist}
       />
     </Box>
   );

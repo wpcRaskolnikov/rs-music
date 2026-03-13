@@ -27,7 +27,7 @@ const Search: React.FC = () => {
       <Box display="flex" gap={1}>
         <IconButton
           onClick={() => {
-            getCurrentWindow().minimize();
+            getCurrentWindow().hide();
           }}
         >
           <MinimizeIcon fontSize="small" />
