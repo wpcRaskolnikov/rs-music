@@ -17,9 +17,15 @@ import PlaylistAddIcon from "@mui/icons-material/PlaylistAdd";
 import Database from "@tauri-apps/plugin-sql";
 import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
-import { useSetAtom } from "jotai";
+import { load } from "@tauri-apps/plugin-store";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { v4 as uuidv4 } from "uuid";
-import { MusicMetadata, isPlayingAtom } from "../store";
+import {
+  MusicMetadata,
+  isPlayingAtom,
+  currentIndexAtom,
+  currentPlaylistIdAtom,
+} from "../store";
 
 export interface PlaylistMenu {
   label: string;
@@ -38,14 +44,35 @@ const SongList: React.FC = () => {
   });
   const [songList, setSongList] = useState<MusicMetadata[]>([]);
   const setIsPlaying = useSetAtom(isPlayingAtom);
+  const [currentIndex, setCurrentIndex] = useAtom(currentIndexAtom);
+  const currentPlaylistId = useAtomValue(currentPlaylistIdAtom);
 
   const loadSongs = async (id: string) => {
     const db = await Database.load("sqlite:db.sqlite");
     const rows = await db.select<MusicMetadata[]>(
-      "SELECT * FROM music WHERE playlist_id = ?",
+      "SELECT * FROM music WHERE playlist_id = ? ORDER BY sort_order",
       [id],
     );
     setSongList(rows);
+  };
+
+  const handleReorder = async (newList: MusicMetadata[]) => {
+    setSongList(newList);
+    if (playlistId === currentPlaylistId && currentIndex >= 0) {
+      const playingSrc = songList[currentIndex]?.src;
+      if (playingSrc) {
+        const newIndex = newList.findIndex((s) => s.src === playingSrc);
+        if (newIndex !== -1) {
+          setCurrentIndex(newIndex);
+          const store = await load("last_played.json");
+          await store.set("index", newIndex);
+        }
+      }
+    }
+    await invoke("reorder_music", {
+      playlistId,
+      sources: newList.map((s) => s.src),
+    });
   };
 
   const handleContextMenu = (
@@ -229,8 +256,10 @@ const SongList: React.FC = () => {
 
       <SongTable
         list={songList}
+        currentIndex={playlistId === currentPlaylistId ? currentIndex : -1}
         onPlay={handlePlay}
         onRemove={handleRemoveSong}
+        onReorder={handleReorder}
       />
 
       <NewDialog

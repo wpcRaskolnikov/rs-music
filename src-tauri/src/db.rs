@@ -41,17 +41,20 @@ pub async fn add_music_files(app_handle: tauri::AppHandle, path: Vec<String>, pl
         println!("Found file: {}", file_str);
         let music_metadata = utils::parse_music_metadata(&file_str);
         sqlx::query(
-                    "INSERT OR REPLACE INTO music (src, title, artist, album, duration, playlist_id) VALUES (?, ?, ?, ?, ?,?)"
-                )
-                .bind(&file_str)
-                .bind(&music_metadata.title)
-                .bind(&music_metadata.artist)
-                .bind(&music_metadata.album)
-                .bind(music_metadata.duration)
-                .bind(&playlist_id)
-                .execute(&db)
-                .await
-                .unwrap();
+            "INSERT INTO music (src, title, artist, album, duration, playlist_id, sort_order) \
+             VALUES (?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM music WHERE playlist_id = ?)) \
+             ON CONFLICT(playlist_id, src) DO UPDATE SET title=excluded.title, artist=excluded.artist, album=excluded.album, duration=excluded.duration"
+        )
+        .bind(&file_str)
+        .bind(&music_metadata.title)
+        .bind(&music_metadata.artist)
+        .bind(&music_metadata.album)
+        .bind(music_metadata.duration)
+        .bind(&playlist_id)
+        .bind(&playlist_id)
+        .execute(&db)
+        .await
+        .unwrap();
     }
 }
 
@@ -67,16 +70,38 @@ pub async fn add_music_folder(app_handle: tauri::AppHandle, path: String, playli
         let music_metadata = utils::parse_music_metadata(&file_str);
 
         sqlx::query(
-                    "INSERT OR REPLACE INTO music (src, title, artist, album, duration, playlist_id) VALUES (?, ?, ?, ?, ?,?)"
-                )
-                .bind(&file_str)
-                .bind(&music_metadata.title)
-                .bind(&music_metadata.artist)
-                .bind(&music_metadata.album)
-                .bind(music_metadata.duration as i64)
-                .bind(&playlist_id)
-                .execute(&db)
-                .await
-                .unwrap();
+            "INSERT INTO music (src, title, artist, album, duration, playlist_id, sort_order) \
+             VALUES (?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM music WHERE playlist_id = ?)) \
+             ON CONFLICT(playlist_id, src) DO UPDATE SET title=excluded.title, artist=excluded.artist, album=excluded.album, duration=excluded.duration"
+        )
+        .bind(&file_str)
+        .bind(&music_metadata.title)
+        .bind(&music_metadata.artist)
+        .bind(&music_metadata.album)
+        .bind(music_metadata.duration as i64)
+        .bind(&playlist_id)
+        .bind(&playlist_id)
+        .execute(&db)
+        .await
+        .unwrap();
     }
+}
+
+#[tauri::command]
+pub async fn reorder_music(
+    app_handle: tauri::AppHandle,
+    playlist_id: String,
+    sources: Vec<String>,
+) {
+    let db = setup_db(&app_handle).await;
+    for (i, src) in sources.iter().enumerate() {
+        sqlx::query("UPDATE music SET sort_order = ? WHERE playlist_id = ? AND src = ?")
+            .bind(i as i64)
+            .bind(&playlist_id)
+            .bind(src)
+            .execute(&db)
+            .await
+            .unwrap();
+    }
+    crate::music::reorder_playlist(sources);
 }

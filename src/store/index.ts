@@ -1,5 +1,8 @@
 export {
   isPlayingAtom,
+  currentIndexAtom,
+  currentPlaylistIdAtom,
+  scrollToCurrentAtom,
   isMutedAtom,
   volumeAtom,
   playModeAtom,

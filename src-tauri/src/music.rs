@@ -31,6 +31,15 @@ enum MusicCommand {
     SetPlayMode(PlayMode),
     PlayNext,
     PlayPrev,
+    Reorder(Vec<String>),
+}
+
+#[derive(Clone, serde::Serialize)]
+struct MusicChangedPayload<'a> {
+    #[serde(flatten)]
+    music: &'a MusicMetadata,
+    index: usize,
+    playlist_id: &'a str,
 }
 
 // 全局事件通道
@@ -86,7 +95,7 @@ pub fn init_music_thread(db: Db, app: tauri::AppHandle) {
                 let songs = rt
                     .block_on(
                         sqlx::query_as::<_, MusicMetadata>(
-                            "SELECT src, title, artist, album, duration FROM music WHERE playlist_id = ?",
+                            "SELECT src, title, artist, album, duration FROM music WHERE playlist_id = ? ORDER BY sort_order",
                         )
                         .bind(&pid)
                         .fetch_all(&db),
@@ -121,8 +130,15 @@ pub fn init_music_thread(db: Db, app: tauri::AppHandle) {
                         };
                         play_file(&sink, &playlist[current_index].src.clone());
                         save_last_played(&app, &current_playlist_id, current_index);
-                        app.emit("current-music-changed", &playlist[current_index])
-                            .ok();
+                        app.emit(
+                            "current-music-changed",
+                            MusicChangedPayload {
+                                music: &playlist[current_index],
+                                index: current_index,
+                                playlist_id: &current_playlist_id,
+                            },
+                        )
+                        .ok();
                     } else if !sink.empty() {
                         has_played = true;
                         if !sink.is_paused() {
@@ -152,8 +168,15 @@ pub fn init_music_thread(db: Db, app: tauri::AppHandle) {
                         current_index = index;
                         play_file(&sink, &song.src.clone());
                         save_last_played(&app, &current_playlist_id, current_index);
-                        app.emit("current-music-changed", &playlist[current_index])
-                            .ok();
+                        app.emit(
+                            "current-music-changed",
+                            MusicChangedPayload {
+                                music: &playlist[current_index],
+                                index: current_index,
+                                playlist_id: &current_playlist_id,
+                            },
+                        )
+                        .ok();
                     }
                 }
                 MusicCommand::Pause => sink.pause(),
@@ -162,8 +185,15 @@ pub fn init_music_thread(db: Db, app: tauri::AppHandle) {
                         sink.play();
                     } else if sink.empty() && !playlist.is_empty() {
                         play_file(&sink, &playlist[current_index].src.clone());
-                        app.emit("current-music-changed", &playlist[current_index])
-                            .ok();
+                        app.emit(
+                            "current-music-changed",
+                            MusicChangedPayload {
+                                music: &playlist[current_index],
+                                index: current_index,
+                                playlist_id: &current_playlist_id,
+                            },
+                        )
+                        .ok();
                     }
                 }
                 MusicCommand::Stop => sink.stop(),
@@ -181,8 +211,15 @@ pub fn init_music_thread(db: Db, app: tauri::AppHandle) {
                         };
                         play_file(&sink, &playlist[current_index].src.clone());
                         save_last_played(&app, &current_playlist_id, current_index);
-                        app.emit("current-music-changed", &playlist[current_index])
-                            .ok();
+                        app.emit(
+                            "current-music-changed",
+                            MusicChangedPayload {
+                                music: &playlist[current_index],
+                                index: current_index,
+                                playlist_id: &current_playlist_id,
+                            },
+                        )
+                        .ok();
                     }
                 }
                 MusicCommand::PlayPrev => {
@@ -196,9 +233,29 @@ pub fn init_music_thread(db: Db, app: tauri::AppHandle) {
                         };
                         play_file(&sink, &playlist[current_index].src.clone());
                         save_last_played(&app, &current_playlist_id, current_index);
-                        app.emit("current-music-changed", &playlist[current_index])
-                            .ok();
+                        app.emit(
+                            "current-music-changed",
+                            MusicChangedPayload {
+                                music: &playlist[current_index],
+                                index: current_index,
+                                playlist_id: &current_playlist_id,
+                            },
+                        )
+                        .ok();
                     }
+                }
+                MusicCommand::Reorder(sources) => {
+                    let current_src = playlist.get(current_index).map(|m| m.src.clone());
+                    let mut new_playlist = Vec::with_capacity(sources.len());
+                    for src in &sources {
+                        if let Some(item) = playlist.iter().find(|m| &m.src == src) {
+                            new_playlist.push(item.clone());
+                        }
+                    }
+                    if let Some(src) = current_src {
+                        current_index = new_playlist.iter().position(|m| m.src == src).unwrap_or(0);
+                    }
+                    playlist = new_playlist;
                 }
             }
         }
@@ -263,6 +320,12 @@ pub fn get_album_cover(path: &str) -> String {
 pub fn set_play_mode(mode: PlayMode) {
     if let Some(tx) = MUSIC_TX.get() {
         let _ = tx.send(MusicCommand::SetPlayMode(mode));
+    }
+}
+
+pub fn reorder_playlist(sources: Vec<String>) {
+    if let Some(tx) = MUSIC_TX.get() {
+        let _ = tx.send(MusicCommand::Reorder(sources));
     }
 }
 

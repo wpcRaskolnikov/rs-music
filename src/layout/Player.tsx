@@ -3,16 +3,20 @@ import { listen } from "@tauri-apps/api/event";
 import { load } from "@tauri-apps/plugin-store";
 import Database from "@tauri-apps/plugin-sql";
 import React, { useState, useEffect } from "react";
-import { useAtom } from "jotai";
+import { useAtom, useSetAtom } from "jotai";
 import {
   isPlayingAtom,
+  currentIndexAtom,
+  currentPlaylistIdAtom,
+  scrollToCurrentAtom,
   volumeAtom,
   isMutedAtom,
   playModeAtom,
   settingsStore,
 } from "../store";
 import { useLatest } from "../utils";
-import { Box } from "@mui/material";
+import { Box, IconButton, Tooltip } from "@mui/material";
+import MyLocationIcon from "@mui/icons-material/MyLocation";
 
 import {
   AlbumCover,
@@ -34,6 +38,9 @@ const Player: React.FC = () => {
   });
 
   const [isPlaying, setIsPlaying] = useAtom(isPlayingAtom);
+  const setCurrentIndex = useSetAtom(currentIndexAtom);
+  const setCurrentPlaylistId = useSetAtom(currentPlaylistIdAtom);
+  const setScrollToCurrent = useSetAtom(scrollToCurrentAtom);
   const [volume, setVolume] = useAtom(volumeAtom);
   const [isMuted, setIsMuted] = useAtom(isMutedAtom);
   const [, setPlayMode] = useAtom(playModeAtom);
@@ -129,18 +136,27 @@ const Player: React.FC = () => {
       if (playlistId != null && index != null) {
         const db = await Database.load("sqlite:db.sqlite");
         const rows = await db.select<MusicMetadata[]>(
-          "SELECT src, title, artist, album, duration FROM music WHERE playlist_id = ? LIMIT 1 OFFSET ?",
+          "SELECT src, title, artist, album, duration FROM music WHERE playlist_id = ? ORDER BY sort_order LIMIT 1 OFFSET ?",
           [playlistId, index],
         );
-        if (rows.length > 0) setCurrentMusic(rows[0]);
+        if (rows.length > 0) {
+          setCurrentMusic(rows[0]);
+          setCurrentIndex(index);
+          setCurrentPlaylistId(playlistId);
+        }
       }
     })();
   }, []);
 
   // 切歌响应
   useEffect(() => {
-    const unlisten = listen<MusicMetadata>("current-music-changed", (event) => {
-      setCurrentMusic(event.payload);
+    const unlisten = listen<
+      MusicMetadata & { index: number; playlist_id: string }
+    >("current-music-changed", (event) => {
+      const { index, playlist_id, ...music } = event.payload;
+      setCurrentMusic(music);
+      setCurrentIndex(index);
+      setCurrentPlaylistId(playlist_id);
       setIsPlaying(true);
     });
     return () => {
@@ -163,6 +179,16 @@ const Player: React.FC = () => {
         <AlbumCover path={currentMusic.src} />
       </Box>
       <SongInfo title={currentMusic.title} artist={currentMusic.artist} />
+      {currentMusic.src && (
+        <Tooltip title="定位到当前歌曲">
+          <IconButton
+            size="small"
+            onClick={() => setScrollToCurrent((n) => n + 1)}
+          >
+            <MyLocationIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      )}
       {/* 进度条 */}
       <ProgressBar duration={currentMusic.duration} />
       {/* 音量控制 */}

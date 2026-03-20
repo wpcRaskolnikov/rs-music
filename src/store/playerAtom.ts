@@ -23,6 +23,9 @@ export interface MusicMetadata {
 }
 
 export const isPlayingAtom = atom(false);
+export const currentIndexAtom = atom(-1);
+export const currentPlaylistIdAtom = atom("");
+export const scrollToCurrentAtom = atom(0);
 export const volumeAtom = atomWithSettings("volume", 1);
 export const isMutedAtom = atomWithSettings("isMuted", false);
 export const playModeAtom = atomWithSettings("playMode", "listLoop");

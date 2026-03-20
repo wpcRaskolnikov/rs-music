@@ -30,6 +30,7 @@ pub fn run() {
             music::play_prev,
             db::add_music_files,
             db::add_music_folder,
+            db::reorder_music,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
