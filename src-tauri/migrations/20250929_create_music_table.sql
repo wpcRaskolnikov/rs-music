@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS music (
     artist TEXT,
     album TEXT,
     duration INTEGER,
-    sort_order INTEGER NOT NULL DEFAULT 0,
+    sort_order REAL NOT NULL DEFAULT 0,
     UNIQUE (playlist_id, src)
 );
 

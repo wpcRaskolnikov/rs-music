@@ -1,11 +1,24 @@
 import React from "react";
-import { Box, TextField, IconButton } from "@mui/material";
+import { Box, TextField, IconButton, InputAdornment } from "@mui/material";
 import MinimizeIcon from "@mui/icons-material/Minimize";
 import CropSquareIcon from "@mui/icons-material/CropSquare";
 import CloseIcon from "@mui/icons-material/Close";
+import ClearIcon from "@mui/icons-material/Clear";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { useAtom } from "jotai";
+import { useNavigate } from "react-router";
+import { searchQueryAtom } from "../store";
 
 const Search: React.FC = () => {
+  const [query, setQuery] = useAtom(searchQueryAtom);
+  const navigate = useNavigate();
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setQuery(value);
+    navigate("/search");
+  };
+
   return (
     <Box
       data-tauri-drag-region
@@ -19,7 +32,24 @@ const Search: React.FC = () => {
         placeholder="搜索"
         size="small"
         variant="outlined"
+        value={query}
+        onChange={handleChange}
         sx={{ width: 200, bgcolor: "#e8f5e9", borderRadius: 1 }}
+        slotProps={{
+          input: {
+            endAdornment: query ? (
+              <InputAdornment position="end">
+                <IconButton
+                  size="small"
+                  onClick={() => setQuery("")}
+                  edge="end"
+                >
+                  <ClearIcon fontSize="small" />
+                </IconButton>
+              </InputAdornment>
+            ) : null,
+          },
+        }}
       />
       <Box flex={1} />
 
