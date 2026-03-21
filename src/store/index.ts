@@ -1,12 +1,14 @@
 export {
+  searchQueryAtom,
   isPlayingAtom,
-  currentIndexAtom,
-  currentPlaylistIdAtom,
+  currentTrackAtom,
   scrollToCurrentAtom,
   isMutedAtom,
   volumeAtom,
   playModeAtom,
+  shortcutsAtom,
+  defaultShortcuts,
   settingsStore,
 } from "./playerAtom";
 
-export type { MusicMetadata } from "./playerAtom";
+export type { MusicMetadata, Shortcuts } from "./playerAtom";

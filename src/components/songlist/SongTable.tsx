@@ -100,7 +100,7 @@ const SongTable: React.FC<{
   currentIndex: number;
   onPlay: (index: number) => void;
   onRemove: (src: string) => void;
-  onReorder: (newList: MusicMetadata[]) => void;
+  onReorder: (newList: MusicMetadata[], from: number, to: number) => void;
 }> = ({ list, currentIndex, onPlay, onRemove, onReorder }) => {
   return (
     <Box sx={{ flex: 1, height: "100%", overflow: "hidden", p: 2 }}>
@@ -120,8 +120,12 @@ const SongTable: React.FC<{
             <TableBody>
               <DragDropProvider
                 onDragEnd={(event) => {
-                  if (event.canceled) return;
-                  onReorder(move(list as any, event) as any);
+                  if (event.canceled || !event.operation.source) return;
+                  const newList = move(list as any, event) as MusicMetadata[];
+                  const src = String(event.operation.source.id);
+                  const from = list.findIndex((item) => item.src === src);
+                  const to = newList.findIndex((item) => item.src === src);
+                  onReorder(newList, from, to);
                 }}
               >
                 {list.map((item, index) => (

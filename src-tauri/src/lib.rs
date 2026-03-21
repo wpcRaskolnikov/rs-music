@@ -1,7 +1,9 @@
 mod db;
 mod music;
+mod tag;
 mod tray;
-mod utils;
+
+use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -10,7 +12,8 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::new().build())
         .setup(|app| {
             let db = tauri::async_runtime::block_on(db::setup_db(app.handle()));
-            music::init_music_thread(db, app.handle().clone());
+            app.manage(db);
+            music::init_music_thread(app.handle().clone());
             tray::setup_tray(app)?;
             Ok(())
         })
@@ -22,7 +25,8 @@ pub fn run() {
             music::pause_music,
             music::resume_music,
             music::stop_music,
-            music::get_album_cover,
+            tag::get_album_cover,
+            tag::get_lyrics,
             music::seek_music,
             music::set_volume,
             music::set_play_mode,
@@ -30,7 +34,7 @@ pub fn run() {
             music::play_prev,
             db::add_music_files,
             db::add_music_folder,
-            db::reorder_music,
+            db::move_music,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

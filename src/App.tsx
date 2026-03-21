@@ -2,7 +2,7 @@ import React from "react";
 import { Box, CssBaseline } from "@mui/material";
 import Aside from "./layout/Aside";
 import Player from "./layout/Player";
-import Search from "./components/Search"; // 导入新组件
+import Search from "./layout/Search";
 import { DownloadList, SongList, Setting, SearchList } from "./views";
 import { Routes, Route } from "react-router";
 import Ranking from "./views/Ranking";

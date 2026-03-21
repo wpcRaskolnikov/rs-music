@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useLocation } from "react-router";
 import {
   Box,
   List,
@@ -18,14 +19,9 @@ import Database from "@tauri-apps/plugin-sql";
 import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 import { load } from "@tauri-apps/plugin-store";
-import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { useAtom, useSetAtom } from "jotai";
 import { v4 as uuidv4 } from "uuid";
-import {
-  MusicMetadata,
-  isPlayingAtom,
-  currentIndexAtom,
-  currentPlaylistIdAtom,
-} from "../store";
+import { MusicMetadata, isPlayingAtom, currentTrackAtom } from "../store";
 
 export interface PlaylistMenu {
   label: string;
@@ -33,6 +29,7 @@ export interface PlaylistMenu {
 }
 
 const SongList: React.FC = () => {
+  const location = useLocation();
   const [playlistMenus, setPlaylistMenus] = useState<PlaylistMenu[]>([]);
   const [playlistId, setPlaylistId] = useState("");
   const [openDialog, setOpenDialog] = useState(false);
@@ -44,8 +41,7 @@ const SongList: React.FC = () => {
   });
   const [songList, setSongList] = useState<MusicMetadata[]>([]);
   const setIsPlaying = useSetAtom(isPlayingAtom);
-  const [currentIndex, setCurrentIndex] = useAtom(currentIndexAtom);
-  const currentPlaylistId = useAtomValue(currentPlaylistIdAtom);
+  const [currentTrack, setCurrentTrack] = useAtom(currentTrackAtom);
 
   const loadSongs = async (id: string) => {
     const db = await Database.load("sqlite:db.sqlite");
@@ -56,23 +52,23 @@ const SongList: React.FC = () => {
     setSongList(rows);
   };
 
-  const handleReorder = async (newList: MusicMetadata[]) => {
+  const handleReorder = async (
+    newList: MusicMetadata[],
+    from: number,
+    to: number,
+  ) => {
     setSongList(newList);
-    if (playlistId === currentPlaylistId && currentIndex >= 0) {
-      const playingSrc = songList[currentIndex]?.src;
-      if (playingSrc) {
-        const newIndex = newList.findIndex((s) => s.src === playingSrc);
-        if (newIndex !== -1) {
-          setCurrentIndex(newIndex);
-          const store = await load("last_played.json");
-          await store.set("index", newIndex);
-        }
+    // 只有查看的列表就是播放的列表，才需要更新 currentIndex
+    if (playlistId === currentTrack.playlistId && currentTrack.index >= 0) {
+      const playingSrc = songList[currentTrack.index].src;
+      const newCi = newList.findIndex((s) => s.src === playingSrc);
+      if (newCi !== currentTrack.index) {
+        setCurrentTrack({ ...currentTrack, index: newCi });
+        const store = await load("last_played.json");
+        await store.set("index", newCi);
       }
     }
-    await invoke("reorder_music", {
-      playlistId,
-      sources: newList.map((s) => s.src),
-    });
+    await invoke("move_music", { playlistId, from, to });
   };
 
   const handleContextMenu = (
@@ -88,9 +84,7 @@ const SongList: React.FC = () => {
     const file = await open({
       multiple: true,
       directory: false,
-      filters: [
-        { name: "音乐文件", extensions: ["mp3", "flac", "wav", "m4a"] },
-      ],
+      filters: [{ name: "音乐文件", extensions: ["mp3", "flac", "wav"] }],
     });
     if (!file) return;
     await invoke("add_music_files", {
@@ -174,7 +168,8 @@ const SongList: React.FC = () => {
       );
       if (rows?.length) {
         setPlaylistMenus(rows);
-        setPlaylistId(rows[0].playlistId);
+        const isLocate = location.state?.locate;
+        setPlaylistId(isLocate ? currentTrack.playlistId : rows[0].playlistId);
       }
     })();
   }, []);
@@ -256,7 +251,9 @@ const SongList: React.FC = () => {
 
       <SongTable
         list={songList}
-        currentIndex={playlistId === currentPlaylistId ? currentIndex : -1}
+        currentIndex={
+          playlistId === currentTrack.playlistId ? currentTrack.index : -1
+        }
         onPlay={handlePlay}
         onRemove={handleRemoveSong}
         onReorder={handleReorder}

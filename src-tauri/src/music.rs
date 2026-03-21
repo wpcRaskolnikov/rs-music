@@ -1,23 +1,68 @@
 use crate::db::Db;
-use crate::utils::MusicMetadata;
-use base64::{Engine as _, engine::general_purpose};
-use lofty::file::TaggedFileExt;
-use lofty::read_from_path;
+use crate::tag::MusicMetadata;
+use rodio::source::EmptyCallback;
 use std::sync::OnceLock;
 use std::time::Duration;
 use std::{
     sync::mpsc::{Receiver, RecvTimeoutError, Sender, channel},
     thread,
 };
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 use tauri_plugin_store::StoreExt;
 
-#[derive(serde::Deserialize)]
+#[derive(Default, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum PlayMode {
+    #[default]
     ListLoop,
     Random,
     SingleLoop,
+}
+
+#[derive(Clone, serde::Serialize)]
+struct PlaylistEntry {
+    #[serde(flatten)]
+    music: MusicMetadata,
+    index: usize,
+    playlist_id: String,
+}
+
+#[derive(Default)]
+struct Playlist {
+    id: String,
+    tracks: Vec<MusicMetadata>,
+    current_index: usize,
+    mode: PlayMode,
+}
+
+impl Playlist {
+    fn is_empty(&self) -> bool {
+        self.tracks.is_empty()
+    }
+
+    fn advance_next(&mut self) {
+        self.current_index = match self.mode {
+            PlayMode::ListLoop => (self.current_index + 1) % self.tracks.len(),
+            PlayMode::Random => rand::random_range(0..self.tracks.len()),
+            PlayMode::SingleLoop => self.current_index,
+        };
+    }
+
+    fn advance_prev(&mut self) {
+        self.current_index = match self.mode {
+            PlayMode::ListLoop => (self.current_index + self.tracks.len() - 1) % self.tracks.len(),
+            PlayMode::Random => rand::random_range(0..self.tracks.len()),
+            PlayMode::SingleLoop => self.current_index,
+        };
+    }
+
+    fn current_entry(&self) -> PlaylistEntry {
+        PlaylistEntry {
+            music: self.tracks[self.current_index].clone(),
+            index: self.current_index,
+            playlist_id: self.id.clone(),
+        }
+    }
 }
 
 // 定义事件类型
@@ -31,19 +76,33 @@ enum MusicCommand {
     SetPlayMode(PlayMode),
     PlayNext,
     PlayPrev,
-    Reorder(Vec<String>),
-}
-
-#[derive(Clone, serde::Serialize)]
-struct MusicChangedPayload<'a> {
-    #[serde(flatten)]
-    music: &'a MusicMetadata,
-    index: usize,
-    playlist_id: &'a str,
+    Move(usize, usize),
 }
 
 // 全局事件通道
 static MUSIC_TX: OnceLock<Sender<MusicCommand>> = OnceLock::new();
+
+fn load_last_played(app: &tauri::AppHandle) -> Option<(String, usize)> {
+    let store = app.store("last_played.json").ok()?;
+    let pid = store
+        .get("playlist_id")
+        .and_then(|v| serde_json::from_value::<String>(v).ok())?;
+    let idx = store
+        .get("index")
+        .and_then(|v| serde_json::from_value::<usize>(v).ok())?;
+    Some((pid, idx))
+}
+
+fn load_play_mode(app: &tauri::AppHandle) -> PlayMode {
+    app.store("settings.json")
+        .ok()
+        .and_then(|store| {
+            store
+                .get("playMode")
+                .and_then(|v| serde_json::from_value::<PlayMode>(v).ok())
+        })
+        .unwrap_or_default()
+}
 
 fn play_file(sink: &rodio::Sink, path: &str) {
     sink.stop();
@@ -59,19 +118,24 @@ fn play_file(sink: &rodio::Sink, path: &str) {
     }
 }
 
-fn save_last_played(app: &tauri::AppHandle, playlist_id: &str, index: usize) {
+fn play_at(app: &tauri::AppHandle, sink: &rodio::Sink, entry: PlaylistEntry) {
+    play_file(sink, &entry.music.src);
     if let Ok(store) = app.store("last_played.json") {
-        let _ = store.set("playlist_id", playlist_id);
-        let _ = store.set("index", index);
+        let _ = store.set("playlist_id", entry.playlist_id.clone());
+        let _ = store.set("index", entry.index);
     }
+    app.emit("current-music-changed", entry).ok();
+    sink.append(EmptyCallback::new(Box::new(play_next)));
 }
 
 // 启动管理线程
-pub fn init_music_thread(db: Db, app: tauri::AppHandle) {
+pub fn init_music_thread(app: tauri::AppHandle) {
     let (tx, rx): (Sender<MusicCommand>, Receiver<MusicCommand>) = channel();
     MUSIC_TX.set(tx).unwrap();
 
     thread::spawn(move || {
+        let db = app.state::<Db>();
+
         let rt = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
@@ -80,70 +144,31 @@ pub fn init_music_thread(db: Db, app: tauri::AppHandle) {
         let stream_handle = rodio::OutputStreamBuilder::open_default_stream().unwrap();
         let sink = rodio::Sink::connect_new(stream_handle.mixer());
 
-        let mut playlist: Vec<MusicMetadata> = Vec::new();
-        let mut current_index: usize = 0;
-        let mut current_playlist_id = String::new();
-
-        if let Ok(store) = app.store("last_played.json") {
-            let pid = store
-                .get("playlist_id")
-                .and_then(|v| serde_json::from_value::<String>(v).ok());
-            let idx = store
-                .get("index")
-                .and_then(|v| serde_json::from_value::<usize>(v).ok());
-            if let (Some(pid), Some(idx)) = (pid, idx) {
-                let songs = rt
-                    .block_on(
-                        sqlx::query_as::<_, MusicMetadata>(
-                            "SELECT src, title, artist, album, duration FROM music WHERE playlist_id = ? ORDER BY sort_order",
-                        )
-                        .bind(&pid)
-                        .fetch_all(&db),
+        let mut playlist = Playlist::default();
+        playlist.mode = load_play_mode(&app);
+        if let Some((pid, idx)) = load_last_played(&app) {
+            let songs = rt
+                .block_on(
+                    sqlx::query_as::<_, MusicMetadata>(
+                        "SELECT src, title, artist, album, duration FROM music WHERE playlist_id = ? ORDER BY sort_order",
                     )
-                    .unwrap_or_default();
-                if !songs.is_empty() {
-                    current_index = idx.min(songs.len() - 1);
-                    current_playlist_id = pid;
-                    playlist = songs;
-                }
+                    .bind(&pid)
+                    .fetch_all(&*db),
+                )
+                .unwrap_or_default();
+            if !songs.is_empty() {
+                playlist.current_index = idx.min(songs.len() - 1);
+                playlist.id = pid;
+                playlist.tracks = songs;
             }
         }
-        let mut play_mode = if let Ok(store) = app.store("settings.json") {
-            store
-                .get("playMode")
-                .and_then(|v| serde_json::from_value::<PlayMode>(v).ok())
-                .unwrap_or(PlayMode::ListLoop)
-        } else {
-            PlayMode::ListLoop
-        };
-        let mut has_played = false;
 
         loop {
             let cmd = match rx.recv_timeout(Duration::from_millis(500)) {
                 Ok(cmd) => cmd,
                 Err(RecvTimeoutError::Timeout) => {
-                    if sink.empty() && has_played && !current_playlist_id.is_empty() {
-                        current_index = match play_mode {
-                            PlayMode::ListLoop => (current_index + 1) % playlist.len(),
-                            PlayMode::Random => rand::random_range(0..playlist.len()),
-                            PlayMode::SingleLoop => current_index,
-                        };
-                        play_file(&sink, &playlist[current_index].src.clone());
-                        save_last_played(&app, &current_playlist_id, current_index);
-                        app.emit(
-                            "current-music-changed",
-                            MusicChangedPayload {
-                                music: &playlist[current_index],
-                                index: current_index,
-                                playlist_id: &current_playlist_id,
-                            },
-                        )
-                        .ok();
-                    } else if !sink.empty() {
-                        has_played = true;
-                        if !sink.is_paused() {
-                            app.emit("play-tick", sink.get_pos().as_secs_f64()).ok();
-                        }
+                    if !sink.empty() && !sink.is_paused() {
+                        app.emit("play-tick", sink.get_pos().as_secs_f64()).ok();
                     }
                     continue;
                 }
@@ -152,31 +177,21 @@ pub fn init_music_thread(db: Db, app: tauri::AppHandle) {
 
             match cmd {
                 MusicCommand::Play(playlist_id, index) => {
-                    if playlist_id != current_playlist_id {
-                        playlist = rt
+                    if playlist_id != playlist.id {
+                        playlist.tracks = rt
                             .block_on(
                                 sqlx::query_as::<_, MusicMetadata>(
                                     "SELECT src, title, artist, album, duration FROM music WHERE playlist_id = ?",
                                 )
                                 .bind(&playlist_id)
-                                .fetch_all(&db),
+                                .fetch_all(&*db),
                             )
                             .unwrap_or_default();
-                        current_playlist_id = playlist_id;
+                        playlist.id = playlist_id;
                     }
-                    if let Some(song) = playlist.get(index) {
-                        current_index = index;
-                        play_file(&sink, &song.src.clone());
-                        save_last_played(&app, &current_playlist_id, current_index);
-                        app.emit(
-                            "current-music-changed",
-                            MusicChangedPayload {
-                                music: &playlist[current_index],
-                                index: current_index,
-                                playlist_id: &current_playlist_id,
-                            },
-                        )
-                        .ok();
+                    if playlist.tracks.get(index).is_some() {
+                        playlist.current_index = index;
+                        play_at(&app, &sink, playlist.current_entry());
                     }
                 }
                 MusicCommand::Pause => sink.pause(),
@@ -184,16 +199,7 @@ pub fn init_music_thread(db: Db, app: tauri::AppHandle) {
                     if sink.is_paused() {
                         sink.play();
                     } else if sink.empty() && !playlist.is_empty() {
-                        play_file(&sink, &playlist[current_index].src.clone());
-                        app.emit(
-                            "current-music-changed",
-                            MusicChangedPayload {
-                                music: &playlist[current_index],
-                                index: current_index,
-                                playlist_id: &current_playlist_id,
-                            },
-                        )
-                        .ok();
+                        play_at(&app, &sink, playlist.current_entry());
                     }
                 }
                 MusicCommand::Stop => sink.stop(),
@@ -201,65 +207,41 @@ pub fn init_music_thread(db: Db, app: tauri::AppHandle) {
                     let _ = sink.try_seek(Duration::from_secs_f32(value));
                 }
                 MusicCommand::SetVolume(value) => sink.set_volume(value),
-                MusicCommand::SetPlayMode(mode) => play_mode = mode,
+                MusicCommand::SetPlayMode(mode) => playlist.mode = mode,
                 MusicCommand::PlayNext => {
                     if !playlist.is_empty() {
-                        current_index = match play_mode {
-                            PlayMode::ListLoop => (current_index + 1) % playlist.len(),
-                            PlayMode::Random => rand::random_range(0..playlist.len()),
-                            PlayMode::SingleLoop => current_index,
-                        };
-                        play_file(&sink, &playlist[current_index].src.clone());
-                        save_last_played(&app, &current_playlist_id, current_index);
-                        app.emit(
-                            "current-music-changed",
-                            MusicChangedPayload {
-                                music: &playlist[current_index],
-                                index: current_index,
-                                playlist_id: &current_playlist_id,
-                            },
-                        )
-                        .ok();
+                        playlist.advance_next();
+                        play_at(&app, &sink, playlist.current_entry());
                     }
                 }
                 MusicCommand::PlayPrev => {
                     if !playlist.is_empty() {
-                        current_index = match play_mode {
-                            PlayMode::ListLoop => {
-                                (current_index + playlist.len() - 1) % playlist.len()
-                            }
-                            PlayMode::Random => rand::random_range(0..playlist.len()),
-                            PlayMode::SingleLoop => current_index,
-                        };
-                        play_file(&sink, &playlist[current_index].src.clone());
-                        save_last_played(&app, &current_playlist_id, current_index);
-                        app.emit(
-                            "current-music-changed",
-                            MusicChangedPayload {
-                                music: &playlist[current_index],
-                                index: current_index,
-                                playlist_id: &current_playlist_id,
-                            },
-                        )
-                        .ok();
+                        playlist.advance_prev();
+                        play_at(&app, &sink, playlist.current_entry());
                     }
                 }
-                MusicCommand::Reorder(sources) => {
-                    let current_src = playlist.get(current_index).map(|m| m.src.clone());
-                    let mut new_playlist = Vec::with_capacity(sources.len());
-                    for src in &sources {
-                        if let Some(item) = playlist.iter().find(|m| &m.src == src) {
-                            new_playlist.push(item.clone());
-                        }
+                MusicCommand::Move(from, to) => {
+                    let playing_src = playlist.tracks[playlist.current_index].src.clone();
+                    if from < to {
+                        playlist.tracks[from..=to].rotate_left(1);
+                    } else if from > to {
+                        playlist.tracks[to..=from].rotate_right(1);
                     }
-                    if let Some(src) = current_src {
-                        current_index = new_playlist.iter().position(|m| m.src == src).unwrap_or(0);
-                    }
-                    playlist = new_playlist;
+                    playlist.current_index = playlist
+                        .tracks
+                        .iter()
+                        .position(|m| m.src == playing_src)
+                        .unwrap_or(playlist.current_index);
                 }
             }
         }
     });
+}
+
+pub fn move_playlist(from: usize, to: usize) {
+    if let Some(tx) = MUSIC_TX.get() {
+        let _ = tx.send(MusicCommand::Move(from, to));
+    }
 }
 
 // Tauri commands
@@ -306,26 +288,9 @@ pub fn set_volume(value: f32) {
 }
 
 #[tauri::command]
-pub fn get_album_cover(path: &str) -> String {
-    (|| -> Result<String, Box<dyn std::error::Error>> {
-        let tagged_file = read_from_path(path)?;
-        let tag = tagged_file.primary_tag().ok_or("No tag")?;
-        let picture = tag.pictures().get(0).ok_or("No picture")?;
-        Ok(general_purpose::STANDARD.encode(picture.data()))
-    })()
-    .unwrap_or_default()
-}
-
-#[tauri::command]
 pub fn set_play_mode(mode: PlayMode) {
     if let Some(tx) = MUSIC_TX.get() {
         let _ = tx.send(MusicCommand::SetPlayMode(mode));
-    }
-}
-
-pub fn reorder_playlist(sources: Vec<String>) {
-    if let Some(tx) = MUSIC_TX.get() {
-        let _ = tx.send(MusicCommand::Reorder(sources));
     }
 }
 
