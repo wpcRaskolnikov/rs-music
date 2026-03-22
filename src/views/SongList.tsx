@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { useLocation } from "react-router";
 import {
   Box,
   List,
@@ -19,9 +18,15 @@ import Database from "@tauri-apps/plugin-sql";
 import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 import { load } from "@tauri-apps/plugin-store";
-import { useAtom, useSetAtom } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { v4 as uuidv4 } from "uuid";
-import { MusicMetadata, isPlayingAtom, currentTrackAtom } from "../store";
+import {
+  MusicMetadata,
+  isPlayingAtom,
+  currentTrackAtom,
+  locateAtom,
+  currentPlaylistAtom,
+} from "../store";
 
 export interface PlaylistMenu {
   label: string;
@@ -29,7 +34,6 @@ export interface PlaylistMenu {
 }
 
 const SongList: React.FC = () => {
-  const location = useLocation();
   const [playlistMenus, setPlaylistMenus] = useState<PlaylistMenu[]>([]);
   const [playlistId, setPlaylistId] = useState("");
   const [openDialog, setOpenDialog] = useState(false);
@@ -42,14 +46,27 @@ const SongList: React.FC = () => {
   const [songList, setSongList] = useState<MusicMetadata[]>([]);
   const setIsPlaying = useSetAtom(isPlayingAtom);
   const [currentTrack, setCurrentTrack] = useAtom(currentTrackAtom);
+  const locate = useAtomValue(locateAtom);
+  const [currentPlaylist, setCurrentPlaylist] = useAtom(currentPlaylistAtom);
 
-  const loadSongs = async (id: string) => {
+  const loadSongs = async (id: string, forceRefresh = false) => {
+    if (
+      !forceRefresh &&
+      id === currentPlaylist.id &&
+      currentPlaylist.songs.length > 0
+    ) {
+      setSongList(currentPlaylist.songs);
+      return;
+    }
     const db = await Database.load("sqlite:db.sqlite");
     const rows = await db.select<MusicMetadata[]>(
       "SELECT * FROM music WHERE playlist_id = ? ORDER BY sort_order",
       [id],
     );
     setSongList(rows);
+    if (id === currentTrack.playlistId) {
+      setCurrentPlaylist({ id, songs: rows });
+    }
   };
 
   const handleReorder = async (
@@ -58,6 +75,9 @@ const SongList: React.FC = () => {
     to: number,
   ) => {
     setSongList(newList);
+    if (playlistId === currentTrack.playlistId) {
+      setCurrentPlaylist({ id: playlistId, songs: newList });
+    }
     // 只有查看的列表就是播放的列表，才需要更新 currentIndex
     if (playlistId === currentTrack.playlistId && currentTrack.index >= 0) {
       const playingSrc = songList[currentTrack.index].src;
@@ -91,7 +111,13 @@ const SongList: React.FC = () => {
       path: file,
       playlistId: currentMenu.playlistId,
     });
-    loadSongs(playlistId);
+    if (
+      currentMenu.playlistId === currentTrack.playlistId &&
+      currentMenu.playlistId !== playlistId
+    ) {
+      setCurrentPlaylist({ id: "", songs: [] });
+    }
+    loadSongs(playlistId, true);
     setAnchorEl(null);
   };
 
@@ -102,7 +128,13 @@ const SongList: React.FC = () => {
       path: file,
       playlistId: currentMenu.playlistId,
     });
-    loadSongs(playlistId);
+    if (
+      currentMenu.playlistId === currentTrack.playlistId &&
+      currentMenu.playlistId !== playlistId
+    ) {
+      setCurrentPlaylist({ id: "", songs: [] });
+    }
+    loadSongs(playlistId, true);
     setAnchorEl(null);
   };
 
@@ -117,7 +149,11 @@ const SongList: React.FC = () => {
       playlistId,
       src,
     ]);
-    setSongList((prev) => prev.filter((s) => s.src !== src));
+    const newList = songList.filter((s) => s.src !== src);
+    setSongList(newList);
+    if (playlistId === currentTrack.playlistId) {
+      setCurrentPlaylist({ id: playlistId, songs: newList });
+    }
   };
 
   const handleCreatePlaylist = async (label: string) => {
@@ -154,6 +190,9 @@ const SongList: React.FC = () => {
     setPlaylistMenus((prev) =>
       prev.filter((p) => p.playlistId !== currentMenu.playlistId),
     );
+    if (currentMenu.playlistId === currentTrack.playlistId) {
+      setCurrentPlaylist({ id: "", songs: [] });
+    }
     if (playlistId === currentMenu.playlistId) {
       setPlaylistId(playlistMenus[0].playlistId);
     }
@@ -168,8 +207,7 @@ const SongList: React.FC = () => {
       );
       if (rows?.length) {
         setPlaylistMenus(rows);
-        const isLocate = location.state?.locate;
-        setPlaylistId(isLocate ? currentTrack.playlistId : rows[0].playlistId);
+        setPlaylistId(currentTrack.playlistId || rows[0].playlistId);
       }
     })();
   }, []);
@@ -178,6 +216,12 @@ const SongList: React.FC = () => {
     if (!playlistId) return;
     loadSongs(playlistId);
   }, [playlistId]);
+
+  // 处理已在 songlist 页面时点击定位
+  useEffect(() => {
+    if (!playlistMenus.length) return;
+    setPlaylistId(currentTrack.playlistId);
+  }, [locate]);
 
   return (
     <Box display="flex" height="100%">

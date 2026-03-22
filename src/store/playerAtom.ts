@@ -44,6 +44,10 @@ export const searchQueryAtom = atom("");
 export const isPlayingAtom = atom(false);
 export const currentTrackAtom = atom({ index: -1, playlistId: "" });
 export const scrollToCurrentAtom = atom(0);
+export const locateAtom = atom(0);
+export const currentPlaylistAtom = atom<{ id: string; songs: MusicMetadata[] }>(
+  { id: "", songs: [] },
+);
 export const volumeAtom = atomWithSettings("volume", 1);
 export const isMutedAtom = atomWithSettings("isMuted", false);
 export const playModeAtom = atomWithSettings("playMode", "listLoop");

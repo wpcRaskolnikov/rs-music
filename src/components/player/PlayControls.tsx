@@ -6,8 +6,11 @@ import {
   PlayArrow as PlayArrowIcon,
   Pause as PauseIcon,
   SkipNext as SkipNextIcon,
+  Shuffle as ShuffleIcon,
+  Repeat as RepeatIcon,
+  RepeatOne as RepeatOneIcon,
 } from "@mui/icons-material";
-import { isPlayingAtom } from "../../store";
+import { isPlayingAtom, playModeAtom } from "../../store";
 import { useAtom } from "jotai";
 
 const btnSx = {
@@ -20,6 +23,7 @@ const btnSx = {
 
 const PlayControls: React.FC = () => {
   const [isPlaying, setIsPlaying] = useAtom(isPlayingAtom);
+  const [playMode, setPlayMode] = useAtom(playModeAtom);
 
   const playPrev = () => {
     invoke("play_prev");
@@ -40,8 +44,54 @@ const PlayControls: React.FC = () => {
     setIsPlaying(!isPlaying);
   };
 
+  const togglePlayMode = () => {
+    let nextMode = "listLoop";
+    switch (playMode) {
+      case "listLoop":
+        nextMode = "random";
+        break;
+      case "random":
+        nextMode = "singleLoop";
+        break;
+      case "singleLoop":
+        nextMode = "listLoop";
+        break;
+    }
+    setPlayMode(nextMode);
+    invoke("set_play_mode", { mode: nextMode });
+  };
+
+  const playModeIcon = () => {
+    switch (playMode) {
+      case "listLoop":
+        return <RepeatIcon />;
+      case "random":
+        return <ShuffleIcon />;
+      case "singleLoop":
+        return <RepeatOneIcon />;
+    }
+  };
+
+  const playModeLabel = () => {
+    switch (playMode) {
+      case "listLoop":
+        return "列表循环";
+      case "random":
+        return "随机播放";
+      case "singleLoop":
+        return "单曲循环";
+      default:
+        return "";
+    }
+  };
+
   return (
     <Box display="flex" alignItems="center">
+      <Tooltip title={playModeLabel()} arrow>
+        <IconButton onClick={togglePlayMode} sx={btnSx}>
+          {playModeIcon()}
+        </IconButton>
+      </Tooltip>
       <Tooltip title="上一首" arrow>
         <IconButton onClick={playPrev} sx={btnSx}>
           <SkipPreIcon fontSize="large" />

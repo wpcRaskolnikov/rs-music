@@ -9,6 +9,7 @@ import {
   isPlayingAtom,
   currentTrackAtom,
   scrollToCurrentAtom,
+  locateAtom,
   volumeAtom,
   isMutedAtom,
   playModeAtom,
@@ -25,7 +26,6 @@ import {
   AlbumCover,
   SongInfo,
   VolumeControl,
-  PlayModeButton,
   PlayControls,
   ProgressBar,
 } from "../components";
@@ -47,6 +47,7 @@ const Player: React.FC = () => {
   const [isPlaying, setIsPlaying] = useAtom(isPlayingAtom);
   const setCurrentTrack = useSetAtom(currentTrackAtom);
   const setScrollToCurrent = useSetAtom(scrollToCurrentAtom);
+  const setLocate = useSetAtom(locateAtom);
   const [volume, setVolume] = useAtom(volumeAtom);
   const [isMuted, setIsMuted] = useAtom(isMutedAtom);
   const [, setPlayMode] = useAtom(playModeAtom);
@@ -197,7 +198,9 @@ const Player: React.FC = () => {
               onClick={() => {
                 setScrollToCurrent((n) => n + 1);
                 if (location.pathname !== "/songlist") {
-                  navigate("/songlist", { state: { locate: true } });
+                  navigate("/songlist");
+                } else {
+                  setLocate((n) => n + 1);
                 }
               }}
             >
@@ -220,9 +223,7 @@ const Player: React.FC = () => {
         <ProgressBar duration={currentMusic.duration} />
         {/* 音量控制 */}
         <VolumeControl />
-        {/* 播放模式 */}
-        <PlayModeButton />
-        {/* 播放按钮 */}
+        {/* 播放控制 */}
         <PlayControls />
       </Box>
     </>

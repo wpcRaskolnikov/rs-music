@@ -3,6 +3,8 @@ export {
   isPlayingAtom,
   currentTrackAtom,
   scrollToCurrentAtom,
+  locateAtom,
+  currentPlaylistAtom,
   isMutedAtom,
   volumeAtom,
   playModeAtom,

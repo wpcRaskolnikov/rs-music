@@ -181,7 +181,7 @@ pub fn init_music_thread(app: tauri::AppHandle) {
                         playlist.tracks = rt
                             .block_on(
                                 sqlx::query_as::<_, MusicMetadata>(
-                                    "SELECT src, title, artist, album, duration FROM music WHERE playlist_id = ?",
+                                    "SELECT src, title, artist, album, duration FROM music WHERE playlist_id = ? ORDER BY sort_order",
                                 )
                                 .bind(&playlist_id)
                                 .fetch_all(&*db),
