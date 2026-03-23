@@ -8,6 +8,13 @@ export interface MusicMetadata {
   duration: number;
 }
 
+export interface PlaylistMenu {
+  label: string;
+  playlistId: string;
+}
+
+export const playlistMenusAtom = atom<PlaylistMenu[]>([]);
+
 export const searchQueryAtom = atom("");
 export const isPlayingAtom = atom(false);
 export const currentTimeAtom = atom(0);

@@ -12,10 +12,9 @@ import {
 } from "@mui/material";
 import HeadphonesIcon from "@mui/icons-material/Headphones";
 import { EmptyText } from "../components";
-import Database from "@tauri-apps/plugin-sql";
 import { invoke } from "@tauri-apps/api/core";
 import { useAtomValue, useSetAtom } from "jotai";
-import { MusicMetadata, searchQueryAtom, isPlayingAtom } from "../store";
+import { MusicMetadata, getDb, searchQueryAtom, isPlayingAtom } from "../store";
 import { formatTime } from "../utils";
 
 interface SearchResult extends MusicMetadata {
@@ -35,7 +34,7 @@ const SearchList: React.FC = () => {
     }
     const keyword = `%${query.trim()}%`;
     (async () => {
-      const db = await Database.load("sqlite:db.sqlite");
+      const db = await getDb();
       const rows = await db.select<SearchResult[]>(
         `SELECT m.src, m.title, m.artist, m.album, m.duration, m.playlist_id,
                 COALESCE(p.label, m.playlist_id) AS playlist_label
@@ -50,7 +49,7 @@ const SearchList: React.FC = () => {
   }, [query]);
 
   const handlePlay = async (result: SearchResult) => {
-    const db = await Database.load("sqlite:db.sqlite");
+    const db = await getDb();
     const rows = await db.select<{ idx: number }[]>(
       "SELECT idx FROM (SELECT src, ROW_NUMBER() OVER (ORDER BY sort_order) - 1 AS idx FROM music WHERE playlist_id = ?) WHERE src = ?",
       [result.playlist_id, result.src],

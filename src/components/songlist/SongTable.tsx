@@ -99,12 +99,21 @@ const SongTable: React.FC<{
 }> = ({ list, currentIndex, onPlay, onRemove, onReorder }) => {
   const tableBodyRef = useRef<HTMLTableSectionElement | null>(null);
 
-  useEffect(() => {
+  const scrollToActive = () => {
     if (currentIndex < 0) return;
     tableBodyRef.current
       ?.querySelector<HTMLTableRowElement>("[data-active]")
-      ?.scrollIntoView({ block: "nearest" });
+      ?.scrollIntoView({ block: "center" });
+  };
+
+  useEffect(() => {
+    scrollToActive();
   }, [currentIndex, list]);
+
+  useEffect(() => {
+    window.addEventListener("locate-playlist", scrollToActive);
+    return () => window.removeEventListener("locate-playlist", scrollToActive);
+  }, [currentIndex]);
 
   return (
     <Box sx={{ flex: 1, height: "100%", overflow: "hidden", p: 2 }}>

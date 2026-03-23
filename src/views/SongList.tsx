@@ -1,37 +1,36 @@
 import React, { useEffect, useState } from "react";
 import { Box } from "@mui/material";
 import { PlaylistPanel, SongTable } from "../components";
-import Database from "@tauri-apps/plugin-sql";
 import { invoke } from "@tauri-apps/api/core";
 import { load } from "@tauri-apps/plugin-store";
 import { useAtom, useSetAtom } from "jotai";
 import {
   MusicMetadata,
+  getDb,
   isPlayingAtom,
   currentTrackAtom,
   currentPlaylistAtom,
 } from "../store";
 
 const SongList: React.FC = () => {
-  const [playlistId, setPlaylistId] = useState("");
+  const [currentPlaylist, setCurrentPlaylist] = useAtom(currentPlaylistAtom);
+  const [playlistId, setPlaylistId] = useState(currentPlaylist.id);
   const [localSongList, setLocalSongList] = useState<MusicMetadata[]>([]);
   const setIsPlaying = useSetAtom(isPlayingAtom);
   const [currentTrack, setCurrentTrack] = useAtom(currentTrackAtom);
-  const [currentPlaylist, setCurrentPlaylist] = useAtom(currentPlaylistAtom);
   const songList =
     playlistId === currentPlaylist.id ? currentPlaylist.songs : localSongList;
 
   const loadSongs = async (id: string) => {
-    const db = await Database.load("sqlite:db.sqlite");
+    // 切换到当前播放歌单时无需读库，songList 直接从 currentPlaylist.songs 渲染
+    if (id === currentPlaylist.id) return;
+
+    const db = await getDb();
     const rows = await db.select<MusicMetadata[]>(
       "SELECT * FROM music WHERE playlist_id = ? ORDER BY sort_order",
       [id],
     );
-    if (id === currentPlaylist.id) {
-      setCurrentPlaylist({ id, songs: rows });
-    } else {
-      setLocalSongList(rows);
-    }
+    setLocalSongList(rows);
   };
 
   const handleReorder = async (
@@ -57,12 +56,15 @@ const SongList: React.FC = () => {
   };
 
   const handlePlay = (index: number) => {
+    if (playlistId !== currentPlaylist.id) {
+      setCurrentPlaylist({ id: playlistId, songs: songList });
+    }
     setIsPlaying(true);
     invoke("play_music", { playlistId, index });
   };
 
   const handleRemoveSong = async (src: string) => {
-    const db = await Database.load("sqlite:db.sqlite");
+    const db = await getDb();
     await db.execute("DELETE FROM music WHERE playlist_id = ? AND src = ?", [
       playlistId,
       src,
@@ -84,7 +86,7 @@ const SongList: React.FC = () => {
     <Box display="flex" height="100%">
       <PlaylistPanel
         onSelect={setPlaylistId}
-        onImported={() => loadSongs(playlistId)}
+        onSelectedImported={() => loadSongs(playlistId)}
       />
       <SongTable
         list={songList}
@@ -99,4 +101,4 @@ const SongList: React.FC = () => {
   );
 };
 
-export default React.memo(SongList);
+export default SongList;

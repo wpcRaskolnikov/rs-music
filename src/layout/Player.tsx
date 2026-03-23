@@ -1,7 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { load } from "@tauri-apps/plugin-store";
-import Database from "@tauri-apps/plugin-sql";
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
@@ -16,6 +15,7 @@ import {
   shortcutsAtom,
   settingsStore,
   currentTrackInfoAtom,
+  getDb,
 } from "../store";
 import type { MusicMetadata, Shortcuts } from "../store";
 import { useLatest } from "../utils";
@@ -126,7 +126,7 @@ const Player: React.FC = () => {
       const playlistId = await store.get<string>("playlist_id");
       const index = await store.get<number>("index");
       if (playlistId != null && index != null) {
-        const db = await Database.load("sqlite:db.sqlite");
+        const db = await getDb();
         const songs = await db.select<MusicMetadata[]>(
           "SELECT src, title, artist, album, duration FROM music WHERE playlist_id = ? ORDER BY sort_order",
           [playlistId],

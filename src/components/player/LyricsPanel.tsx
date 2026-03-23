@@ -16,16 +16,26 @@ const LyricsPanel: React.FC = () => {
   const activeLineRef = useRef<HTMLLIElement>(null);
   const [isUserScrolling, setIsUserScrolling] = useState(false);
   const scrollResumeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [displayKey, setDisplayKey] = useState(src);
 
   const lines = lyrics ?? [];
 
   useEffect(() => {
     if (!src) {
       setLyrics(null);
+      setDisplayKey(src);
       return;
     }
-    invoke<LrcLine[] | null>("get_lyrics", { path: src }).then(setLyrics);
+    invoke<LrcLine[] | null>("get_lyrics", { path: src }).then((result) => {
+      setLyrics(result);
+      setDisplayKey(src);
+    });
   }, [src]);
+
+  const fadeInSx = {
+    animation: "lyricsIn 0.4s ease",
+    "@keyframes lyricsIn": { from: { opacity: 0 }, to: { opacity: 1 } },
+  };
 
   // 组件卸载时清理定时器
   useEffect(() => {
@@ -73,11 +83,18 @@ const LyricsPanel: React.FC = () => {
       }}
     >
       {!lyrics ? (
-        <Typography sx={{ color: "rgba(255,255,255,0.4)", mt: "30vh" }}>
+        <Typography
+          key={displayKey}
+          sx={{ color: "rgba(255,255,255,0.4)", mt: "30vh", ...fadeInSx }}
+        >
           暂无歌词
         </Typography>
       ) : (
-        <List disablePadding sx={{ width: "100%", maxWidth: 600 }}>
+        <List
+          key={displayKey}
+          disablePadding
+          sx={{ width: "100%", maxWidth: 600, ...fadeInSx }}
+        >
           <Box sx={{ height: "30vh" }} />
           {lines.map((line, i) => (
             <ListItem
