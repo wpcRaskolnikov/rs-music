@@ -14,14 +14,6 @@ function atomWithSettings<T>(key: string, initialValue: T) {
   );
 }
 
-export interface MusicMetadata {
-  src: string;
-  title: string;
-  artist: string;
-  album: string;
-  duration: number;
-}
-
 export interface Shortcuts {
   playPause: string;
   mute: string;
@@ -40,14 +32,6 @@ export const defaultShortcuts: Shortcuts = {
   nextSong: "ArrowRight",
 };
 
-export const searchQueryAtom = atom("");
-export const isPlayingAtom = atom(false);
-export const currentTrackAtom = atom({ index: -1, playlistId: "" });
-export const scrollToCurrentAtom = atom(0);
-export const locateAtom = atom(0);
-export const currentPlaylistAtom = atom<{ id: string; songs: MusicMetadata[] }>(
-  { id: "", songs: [] },
-);
 export const volumeAtom = atomWithSettings("volume", 1);
 export const isMutedAtom = atomWithSettings("isMuted", false);
 export const playModeAtom = atomWithSettings("playMode", "listLoop");

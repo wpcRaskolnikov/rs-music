@@ -1,44 +1,19 @@
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
-import React, { useState, useEffect, useRef } from "react";
-import { Box, Slider, Typography } from "@mui/material";
+import React, { useState } from "react";
+import { useAtom, useAtomValue } from "jotai";
+import { Box, Slider, Tooltip, Typography } from "@mui/material";
 import { formatTime } from "../../utils";
+import { currentTimeAtom, currentTrackInfoAtom } from "../../store";
 
-interface Props {
-  duration: number;
-}
-
-const ProgressBar: React.FC<Props> = ({ duration }) => {
-  const [currentTime, setCurrentTime] = useState(0);
+const ProgressBar: React.FC = () => {
+  const [currentTime, setCurrentTime] = useAtom(currentTimeAtom);
+  const { duration } = useAtomValue(currentTrackInfoAtom);
   const [hoverTime, setHoverTime] = useState<number | null>(null);
-  const sliderRef = useRef<HTMLDivElement>(null);
 
-  // 进度同步
-  useEffect(() => {
-    const unlisten = listen<number>("play-tick", (event) => {
-      setCurrentTime(event.payload);
-    });
-    return () => {
-      unlisten.then((f) => f());
-    };
-  }, []);
-
-  // 切歌重置进度
-  useEffect(() => {
-    const unlisten = listen("current-music-changed", () => {
-      setCurrentTime(0);
-    });
-    return () => {
-      unlisten.then((f) => f());
-    };
-  }, []);
-
-  const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (sliderRef.current) {
-      const rect = sliderRef.current.getBoundingClientRect();
-      const percent = (event.clientX - rect.left) / rect.width;
-      setHoverTime(Math.max(0, Math.min(duration, percent * duration)));
-    }
+  const handleMouseMove = (event: React.MouseEvent<HTMLSpanElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const percent = (event.clientX - rect.left) / rect.width;
+    setHoverTime(Math.max(0, Math.min(duration, percent * duration)));
   };
 
   return (
@@ -46,23 +21,22 @@ const ProgressBar: React.FC<Props> = ({ duration }) => {
       <Typography variant="body2" minWidth={40} sx={{ fontSize: "0.75rem" }}>
         {formatTime(currentTime)}
       </Typography>
-      <Box
-        ref={sliderRef}
-        flex={1}
-        position="relative"
-        onMouseMove={handleMouseMove}
-        onMouseLeave={() => setHoverTime(null)}
+      <Tooltip
+        title={hoverTime !== null ? formatTime(hoverTime) : ""}
+        followCursor
+        placement="top"
       >
         <Slider
           max={duration}
           value={currentTime}
           onChange={(_, value) => {
-            invoke("seek_music", { value });
             setCurrentTime(value as number);
+            invoke("seek_music", { value });
           }}
-          aria-labelledby="progress-slider"
+          onMouseMove={handleMouseMove}
+          onMouseLeave={() => setHoverTime(null)}
           sx={{
-            width: "100%",
+            flex: 1,
             color: "primary.main",
             height: 4,
             "& .MuiSlider-thumb": {
@@ -86,27 +60,7 @@ const ProgressBar: React.FC<Props> = ({ duration }) => {
             },
           }}
         />
-        {hoverTime !== null && (
-          <Box
-            sx={{
-              position: "absolute",
-              bottom: 30,
-              left: `${(hoverTime / duration) * 100}%`,
-              transform: "translateX(-50%)",
-              bgcolor: "rgba(0, 0, 0, 0.8)",
-              color: "white",
-              px: 1,
-              py: 0.5,
-              borderRadius: 1,
-              fontSize: "0.7rem",
-              pointerEvents: "none",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {formatTime(hoverTime)}
-          </Box>
-        )}
-      </Box>
+      </Tooltip>
       <Typography variant="body2" minWidth={40} sx={{ fontSize: "0.75rem" }}>
         -{formatTime(Math.max(0, duration - currentTime))}
       </Typography>

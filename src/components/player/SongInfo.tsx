@@ -1,10 +1,10 @@
 import React from "react";
 import { Box, Typography, Tooltip } from "@mui/material";
+import { useAtomValue } from "jotai";
+import { currentTrackInfoAtom } from "../../store";
 
-const SongInfo: React.FC<{
-  title: string;
-  artist: string;
-}> = ({ title, artist }) => {
+const SongInfo: React.FC = () => {
+  const { title, artist } = useAtomValue(currentTrackInfoAtom);
   return (
     <Box display="flex" flexDirection="column" alignItems="center" mx={1}>
       <Tooltip title={title} arrow placement="top" enterDelay={500}>

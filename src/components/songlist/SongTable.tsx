@@ -17,9 +17,8 @@ import { DragDropProvider } from "@dnd-kit/react";
 import { useSortable } from "@dnd-kit/react/sortable";
 import { move } from "@dnd-kit/helpers";
 import EmptyText from "../EmptyText";
-import { MusicMetadata, scrollToCurrentAtom } from "../../store";
+import { MusicMetadata } from "../../store";
 import { formatTime } from "../../utils";
-import { useAtomValue } from "jotai";
 
 interface SortableRowProps {
   item: MusicMetadata;
@@ -45,14 +44,10 @@ function SortableRow({
     handle: handleRef,
   });
 
-  const scrollToCurrent = useAtomValue(scrollToCurrentAtom);
-  useEffect(() => {
-    if (isActive) element?.scrollIntoView({ block: "nearest" });
-  }, [scrollToCurrent]);
-
   return (
     <TableRow
       ref={(el) => setElement(el)}
+      data-active={isActive || undefined}
       hover
       selected={isActive}
       onDoubleClick={onPlay}
@@ -102,6 +97,15 @@ const SongTable: React.FC<{
   onRemove: (src: string) => void;
   onReorder: (newList: MusicMetadata[], from: number, to: number) => void;
 }> = ({ list, currentIndex, onPlay, onRemove, onReorder }) => {
+  const tableBodyRef = useRef<HTMLTableSectionElement | null>(null);
+
+  useEffect(() => {
+    if (currentIndex < 0) return;
+    tableBodyRef.current
+      ?.querySelector<HTMLTableRowElement>("[data-active]")
+      ?.scrollIntoView({ block: "nearest" });
+  }, [currentIndex, list]);
+
   return (
     <Box sx={{ flex: 1, height: "100%", overflow: "hidden", p: 2 }}>
       {list.length ? (
@@ -117,7 +121,7 @@ const SongTable: React.FC<{
                 <TableCell sx={{ whiteSpace: "nowrap" }}>时长</TableCell>
               </TableRow>
             </TableHead>
-            <TableBody>
+            <TableBody ref={tableBodyRef}>
               <DragDropProvider
                 onDragEnd={(event) => {
                   if (event.canceled || !event.operation.source) return;

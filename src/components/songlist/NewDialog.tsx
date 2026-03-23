@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import type { SubmitEventHandler } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -11,17 +12,17 @@ import {
 interface NewDialogProps {
   open: boolean;
   onClose: () => void;
-  onCreate: (label: string) => void;
+  onSubmit: (label: string) => void;
 }
 
-const NewDialog: React.FC<NewDialogProps> = ({ open, onClose, onCreate }) => {
-  const [label, setLabel] = useState("");
+const NewDialog: React.FC<NewDialogProps> = ({ open, onClose, onSubmit }) => {
+  const [name, setName] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit: SubmitEventHandler<HTMLFormElement> = (e) => {
     e.preventDefault();
-    if (!label.trim()) return;
-    onCreate(label.trim());
-    setLabel("");
+    if (!name.trim()) return;
+    onSubmit(name.trim());
+    setName("");
     onClose();
   };
 
@@ -35,8 +36,8 @@ const NewDialog: React.FC<NewDialogProps> = ({ open, onClose, onCreate }) => {
             margin="dense"
             label="播放列表名称"
             fullWidth
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
           />
         </DialogContent>
         <DialogActions>

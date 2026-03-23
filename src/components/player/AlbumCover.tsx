@@ -1,32 +1,34 @@
-import { CardMedia, Dialog, Box, IconButton } from "@mui/material";
-import { Close as CloseIcon } from "@mui/icons-material";
 import { invoke } from "@tauri-apps/api/core";
-import { useEffect, useState } from "react";
+import { Box, CardMedia, Dialog, IconButton } from "@mui/material";
+import { Close as CloseIcon } from "@mui/icons-material";
+import { useAtomValue } from "jotai";
+import { useState, useEffect } from "react";
+import { currentTrackInfoAtom } from "../../store";
 
-const AlbumCover: React.FC<{ path: string }> = ({ path }) => {
+const AlbumCover: React.FC = () => {
+  const { src } = useAtomValue(currentTrackInfoAtom);
   const [cover, setCover] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    invoke<string>("get_album_cover", { path })
-      .then(setCover)
-      .catch((error) => console.error("获取封面失败:", error));
-  }, [path]);
-
-  const handleOpen = () => setOpen(true);
-  const handleClose = () => setOpen(false);
+    if (!src) {
+      setCover(null);
+      return;
+    }
+    invoke<string>("get_album_cover", { path: src })
+      .then((b64) => setCover(`data:image/png;base64,${b64}`))
+      .catch(() => setCover(null));
+  }, [src]);
 
   if (!cover) return <div>加载中...</div>;
-
-  const coverImageUrl = `data:image/png;base64, ${cover}`;
 
   return (
     <>
       <CardMedia
         component="img"
-        image={coverImageUrl}
+        image={cover}
         alt="Album Cover"
-        onClick={handleOpen}
+        onClick={() => setOpen(true)}
         sx={{
           height: "100%",
           width: "auto",
@@ -42,7 +44,7 @@ const AlbumCover: React.FC<{ path: string }> = ({ path }) => {
 
       <Dialog
         open={open}
-        onClose={handleClose}
+        onClose={() => setOpen(false)}
         maxWidth="md"
         fullWidth
         sx={{
@@ -63,7 +65,7 @@ const AlbumCover: React.FC<{ path: string }> = ({ path }) => {
           }}
         >
           <IconButton
-            onClick={handleClose}
+            onClick={() => setOpen(false)}
             sx={{
               position: "absolute",
               top: 8,
@@ -71,20 +73,18 @@ const AlbumCover: React.FC<{ path: string }> = ({ path }) => {
               bgcolor: "rgba(0, 0, 0, 0.6)",
               color: "white",
               zIndex: 1,
-              "&:hover": {
-                bgcolor: "rgba(0, 0, 0, 0.8)",
-              },
+              "&:hover": { bgcolor: "rgba(0, 0, 0, 0.8)" },
             }}
           >
             <CloseIcon />
           </IconButton>
-          <Box
+          <CardMedia
             component="img"
-            src={coverImageUrl}
+            image={cover}
             alt="Album Cover"
             sx={{
-              maxWidth: "100%",
               maxHeight: "80vh",
+              width: "auto",
               borderRadius: 2,
               boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
             }}

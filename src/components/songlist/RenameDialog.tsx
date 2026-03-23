@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import type { SubmitEventHandler } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -10,27 +11,27 @@ import {
 
 interface RenameDialogProps {
   open: boolean;
-  currentLabel: string;
+  currentName: string;
   onClose: () => void;
-  onRename: (label: string) => void;
+  onSubmit: (label: string) => void;
 }
 
 const RenameDialog: React.FC<RenameDialogProps> = ({
   open,
-  currentLabel,
+  currentName,
   onClose,
-  onRename,
+  onSubmit,
 }) => {
-  const [label, setLabel] = useState(currentLabel);
+  const [name, setName] = useState(currentName);
 
   useEffect(() => {
-    if (open) setLabel(currentLabel);
-  }, [open, currentLabel]);
+    if (open) setName(currentName);
+  }, [open, currentName]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit: SubmitEventHandler<HTMLFormElement> = (e) => {
     e.preventDefault();
-    if (!label.trim()) return;
-    onRename(label.trim());
+    if (!name.trim()) return;
+    onSubmit(name.trim());
     onClose();
   };
 
@@ -44,8 +45,8 @@ const RenameDialog: React.FC<RenameDialogProps> = ({
             margin="dense"
             label="播放列表名称"
             fullWidth
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
           />
         </DialogContent>
         <DialogActions>

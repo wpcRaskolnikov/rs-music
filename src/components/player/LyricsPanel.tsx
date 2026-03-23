@@ -1,119 +1,61 @@
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
-import React, { useState, useEffect, useRef, useMemo } from "react";
-import { Box, Typography } from "@mui/material";
+import React, { useEffect, useRef, useState } from "react";
+import { useAtom, useAtomValue } from "jotai";
+import { Box, List, ListItem, ListItemText, Typography } from "@mui/material";
+import {
+  currentTrackInfoAtom,
+  lyricsAtom,
+  activeLyricIndexAtom,
+} from "../../store";
+import type { LrcLine } from "../../store";
 
-interface LyricLine {
-  time: number;
-  text: string;
-}
+const LyricsPanel: React.FC = () => {
+  const { src } = useAtomValue(currentTrackInfoAtom);
+  const [lyrics, setLyrics] = useAtom(lyricsAtom);
+  const activeIndex = useAtomValue(activeLyricIndexAtom);
+  const activeLineRef = useRef<HTMLLIElement>(null);
+  const [isUserScrolling, setIsUserScrolling] = useState(false);
+  const scrollResumeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-function parseLrc(content: string): LyricLine[] {
-  const lines: LyricLine[] = [];
-  const metaRegex = /^\[(?:ti|ar|al|by|offset|length|re|ve|#):/i;
-  const timeRegex = /\[(\d{2}):(\d{2})[.:](\d{1,3})\]/g;
+  const lines = lyrics ?? [];
 
-  for (const rawLine of content.split("\n")) {
-    const trimmed = rawLine.trim();
-    if (!trimmed || metaRegex.test(trimmed)) continue;
-
-    const times: number[] = [];
-    let textStart = 0;
-
-    timeRegex.lastIndex = 0;
-    let match: RegExpExecArray | null;
-    while ((match = timeRegex.exec(trimmed)) !== null) {
-      const min = parseInt(match[1]);
-      const sec = parseInt(match[2]);
-      const ms = parseInt(match[3].padEnd(3, "0"));
-      times.push(min * 60 + sec + ms / 1000);
-      textStart = timeRegex.lastIndex;
-    }
-
-    if (times.length === 0) continue;
-    const text = trimmed.slice(textStart).trim();
-    if (!text) continue;
-
-    for (const time of times) {
-      lines.push({ time, text });
-    }
-  }
-
-  return lines.sort((a, b) => a.time - b.time);
-}
-
-interface Props {
-  musicSrc: string;
-  show: boolean;
-}
-
-const LyricsPanel: React.FC<Props> = ({ musicSrc, show }) => {
-  const [lyricsContent, setLyricsContent] = useState("");
-  const [currentTime, setCurrentTime] = useState(0);
-  const activeLineRef = useRef<HTMLDivElement>(null);
-
-  const lines = useMemo(() => parseLrc(lyricsContent), [lyricsContent]);
-  const isPlainText = lyricsContent.length > 0 && lines.length === 0;
-
-  // Binary search for active lyric line
-  const activeIndex = useMemo(() => {
-    if (lines.length === 0) return -1;
-    let lo = 0,
-      hi = lines.length - 1,
-      result = 0;
-    while (lo <= hi) {
-      const mid = (lo + hi) >> 1;
-      if (lines[mid].time <= currentTime) {
-        result = mid;
-        lo = mid + 1;
-      } else {
-        hi = mid - 1;
-      }
-    }
-    return result;
-  }, [lines, currentTime]);
-
-  // Fetch lyrics when song changes
   useEffect(() => {
-    if (!musicSrc) {
-      setLyricsContent("");
+    if (!src) {
+      setLyrics(null);
       return;
     }
-    invoke<string>("get_lyrics", { path: musicSrc }).then(setLyricsContent);
-  }, [musicSrc]);
+    invoke<LrcLine[] | null>("get_lyrics", { path: src }).then(setLyrics);
+  }, [src]);
 
-  // Listen to play-tick for current time
+  // 组件卸载时清理定时器
   useEffect(() => {
-    const unlisten = listen<number>("play-tick", (e) =>
-      setCurrentTime(e.payload),
-    );
     return () => {
-      unlisten.then((f) => f());
+      if (scrollResumeTimer.current) clearTimeout(scrollResumeTimer.current);
     };
   }, []);
 
-  // Reset time on song change
-  useEffect(() => {
-    const unlisten = listen("current-music-changed", () => setCurrentTime(0));
-    return () => {
-      unlisten.then((f) => f());
-    };
-  }, []);
+  const handleUserInteraction = () => {
+    setIsUserScrolling(true);
+    if (scrollResumeTimer.current) clearTimeout(scrollResumeTimer.current);
+    scrollResumeTimer.current = setTimeout(() => {
+      setIsUserScrolling(false);
+    }, 3000);
+  };
 
-  // Auto-scroll active line into view
+  // 自动滚动到当前行（用户手动浏览时跳过；恢复时立即回到当前行）
   useEffect(() => {
-    if (show && activeLineRef.current) {
-      activeLineRef.current.scrollIntoView({
+    if (!isUserScrolling) {
+      activeLineRef.current?.scrollIntoView({
         behavior: "smooth",
         block: "center",
       });
     }
-  }, [activeIndex, show]);
-
-  if (!show) return null;
+  }, [activeIndex, isUserScrolling]);
 
   return (
     <Box
+      onWheel={handleUserInteraction}
+      onTouchMove={handleUserInteraction}
       sx={{
         position: "fixed",
         left: "60px",
@@ -130,51 +72,59 @@ const LyricsPanel: React.FC<Props> = ({ musicSrc, show }) => {
         px: 2,
       }}
     >
-      {!lyricsContent ? (
+      {!lyrics ? (
         <Typography sx={{ color: "rgba(255,255,255,0.4)", mt: "30vh" }}>
           暂无歌词
         </Typography>
-      ) : isPlainText ? (
-        <Typography
-          sx={{
-            color: "rgba(255,255,255,0.85)",
-            whiteSpace: "pre-wrap",
-            maxWidth: 600,
-            lineHeight: 2,
-            mt: 4,
-          }}
-        >
-          {lyricsContent}
-        </Typography>
       ) : (
-        <Box sx={{ width: "100%", maxWidth: 600 }}>
+        <List disablePadding sx={{ width: "100%", maxWidth: 600 }}>
           <Box sx={{ height: "30vh" }} />
           {lines.map((line, i) => (
-            <Box
+            <ListItem
               key={i}
               ref={i === activeIndex ? activeLineRef : undefined}
-              sx={{ textAlign: "center", py: 0.8 }}
+              disableGutters
+              sx={{ justifyContent: "center", py: 0.8 }}
             >
-              <Typography
-                sx={{
-                  fontSize: i === activeIndex ? "1.15rem" : "0.95rem",
-                  fontWeight: i === activeIndex ? 700 : 400,
-                  color:
-                    i === activeIndex
-                      ? "#ffffff"
-                      : i < activeIndex
-                        ? "rgba(255,255,255,0.35)"
-                        : "rgba(255,255,255,0.55)",
-                  transition: "all 0.3s ease",
-                  lineHeight: 1.6,
+              <ListItemText
+                primary={line.content}
+                secondary={line.translation ?? undefined}
+                sx={{ textAlign: "center", m: 0 }}
+                slotProps={{
+                  primary: {
+                    sx: {
+                      fontSize: i === activeIndex ? "1.15rem" : "0.95rem",
+                      fontWeight: i === activeIndex ? 700 : 400,
+                      color:
+                        i === activeIndex
+                          ? "#ffffff"
+                          : i < activeIndex
+                            ? "rgba(255,255,255,0.35)"
+                            : "rgba(255,255,255,0.55)",
+                      transition: "all 0.3s ease",
+                      lineHeight: 1.6,
+                    },
+                  },
+                  secondary: {
+                    sx: {
+                      fontSize: i === activeIndex ? "0.85rem" : "0.72rem",
+                      color:
+                        i === activeIndex
+                          ? "rgba(255,255,255,0.7)"
+                          : i < activeIndex
+                            ? "rgba(255,255,255,0.22)"
+                            : "rgba(255,255,255,0.38)",
+                      transition: "all 0.3s ease",
+                      lineHeight: 1.5,
+                      mt: 0.3,
+                    },
+                  },
                 }}
-              >
-                {line.text}
-              </Typography>
-            </Box>
+              />
+            </ListItem>
           ))}
           <Box sx={{ height: "30vh" }} />
-        </Box>
+        </List>
       )}
     </Box>
   );

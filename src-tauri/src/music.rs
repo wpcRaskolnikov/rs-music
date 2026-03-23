@@ -93,15 +93,31 @@ fn load_last_played(app: &tauri::AppHandle) -> Option<(String, usize)> {
     Some((pid, idx))
 }
 
-fn load_play_mode(app: &tauri::AppHandle) -> PlayMode {
-    app.store("settings.json")
-        .ok()
-        .and_then(|store| {
-            store
-                .get("playMode")
-                .and_then(|v| serde_json::from_value::<PlayMode>(v).ok())
-        })
-        .unwrap_or_default()
+struct AudioSettings {
+    play_mode: PlayMode,
+    volume: f32,
+    is_muted: bool,
+}
+
+fn load_audio_settings(app: &tauri::AppHandle) -> AudioSettings {
+    let store = app.store("settings.json").ok();
+    let get = |key: &str| store.as_ref()?.get(key);
+
+    let play_mode = get("playMode")
+        .and_then(|v| serde_json::from_value::<PlayMode>(v).ok())
+        .unwrap_or_default();
+    let volume = get("volume")
+        .and_then(|v| serde_json::from_value::<f32>(v).ok())
+        .unwrap_or(1.0);
+    let is_muted = get("isMuted")
+        .and_then(|v| serde_json::from_value::<bool>(v).ok())
+        .unwrap_or(false);
+
+    AudioSettings {
+        play_mode,
+        volume,
+        is_muted,
+    }
 }
 
 fn play_file(sink: &rodio::Sink, path: &str) {
@@ -145,7 +161,13 @@ pub fn init_music_thread(app: tauri::AppHandle) {
         let sink = rodio::Sink::connect_new(stream_handle.mixer());
 
         let mut playlist = Playlist::default();
-        playlist.mode = load_play_mode(&app);
+        let audio_settings = load_audio_settings(&app);
+        playlist.mode = audio_settings.play_mode;
+        sink.set_volume(if audio_settings.is_muted {
+            0.0
+        } else {
+            audio_settings.volume
+        });
         if let Some((pid, idx)) = load_last_played(&app) {
             let songs = rt
                 .block_on(
@@ -160,6 +182,11 @@ pub fn init_music_thread(app: tauri::AppHandle) {
                 playlist.current_index = idx.min(songs.len() - 1);
                 playlist.id = pid;
                 playlist.tracks = songs;
+
+                // 预加载并暂停，使 sink 非空
+                play_file(&sink, &playlist.tracks[playlist.current_index].src);
+                sink.pause();
+                sink.append(EmptyCallback::new(Box::new(play_next)));
             }
         }
 

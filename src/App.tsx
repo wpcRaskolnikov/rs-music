@@ -3,9 +3,8 @@ import { Box, CssBaseline } from "@mui/material";
 import Aside from "./layout/Aside";
 import Player from "./layout/Player";
 import Search from "./layout/Search";
-import { DownloadList, SongList, Setting, SearchList } from "./views";
-import { Routes, Route } from "react-router";
-import Ranking from "./views/Ranking";
+import MainContent from "./layout/MainContent";
+
 const App: React.FC = () => {
   return (
     <>
@@ -16,18 +15,7 @@ const App: React.FC = () => {
         {/* 主体区域 */}
         <Box flex={1} display="flex" flexDirection="column" position="relative">
           <Search />
-
-          {/* 内容显示区 */}
-          <Box flex={1} overflow="auto" bgcolor="white">
-            <Routes>
-              <Route index element={<SearchList />} />
-              <Route path="/search" element={<SearchList />} />
-              <Route path="/ranking" element={<Ranking />} />
-              <Route path="/download" element={<DownloadList />} />
-              <Route path="/songlist" element={<SongList />} />
-              <Route path="/setting" element={<Setting />} />
-            </Routes>
-          </Box>
+          <MainContent />
           <Player />
         </Box>
       </Box>
