@@ -7,7 +7,7 @@ import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
   currentTimeAtom,
   isPlayingAtom,
-  currentTrackAtom,
+  currentTrackIndexAtom,
   currentPlaylistAtom,
   volumeAtom,
   isMutedAtom,
@@ -38,7 +38,7 @@ const Player: React.FC = () => {
 
   const [showLyrics, setShowLyrics] = useState(false);
   const [isPlaying, setIsPlaying] = useAtom(isPlayingAtom);
-  const setCurrentTrack = useSetAtom(currentTrackAtom);
+  const setCurrentTrackIndex = useSetAtom(currentTrackIndexAtom);
   const setCurrentPlaylist = useSetAtom(currentPlaylistAtom);
   const [volume, setVolume] = useAtom(volumeAtom);
   const [isMuted, setIsMuted] = useAtom(isMutedAtom);
@@ -132,8 +132,8 @@ const Player: React.FC = () => {
           [playlistId],
         );
         if (songs.length > 0 && index < songs.length) {
-          setCurrentPlaylist({ id: playlistId, songs });
-          setCurrentTrack({ index, playlistId });
+          setCurrentPlaylist({ playlistId, songs });
+          setCurrentTrackIndex(index);
         }
       }
     })();
@@ -154,8 +154,8 @@ const Player: React.FC = () => {
     const unlisten = listen<
       MusicMetadata & { index: number; playlist_id: string }
     >("current-music-changed", (event) => {
-      const { index, playlist_id } = event.payload;
-      setCurrentTrack({ index, playlistId: playlist_id });
+      const { index } = event.payload;
+      setCurrentTrackIndex(index);
       setCurrentTime(0);
       setIsPlaying(true);
     });

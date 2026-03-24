@@ -8,22 +8,26 @@ import {
   MusicMetadata,
   getDb,
   isPlayingAtom,
-  currentTrackAtom,
+  currentTrackIndexAtom,
   currentPlaylistAtom,
 } from "../store";
 
 const SongList: React.FC = () => {
   const [currentPlaylist, setCurrentPlaylist] = useAtom(currentPlaylistAtom);
-  const [playlistId, setPlaylistId] = useState(currentPlaylist.id);
+  const [playlistId, setPlaylistId] = useState(currentPlaylist.playlistId);
   const [localSongList, setLocalSongList] = useState<MusicMetadata[]>([]);
   const setIsPlaying = useSetAtom(isPlayingAtom);
-  const [currentTrack, setCurrentTrack] = useAtom(currentTrackAtom);
+  const [currentTrackIndex, setCurrentTrackIndex] = useAtom(
+    currentTrackIndexAtom,
+  );
   const songList =
-    playlistId === currentPlaylist.id ? currentPlaylist.songs : localSongList;
+    playlistId === currentPlaylist.playlistId
+      ? currentPlaylist.songs
+      : localSongList;
 
   const loadSongs = async (id: string) => {
     // 切换到当前播放歌单时无需读库，songList 直接从 currentPlaylist.songs 渲染
-    if (id === currentPlaylist.id) return;
+    if (id === currentPlaylist.playlistId) return;
 
     const db = await getDb();
     const rows = await db.select<MusicMetadata[]>(
@@ -38,16 +42,16 @@ const SongList: React.FC = () => {
     from: number,
     to: number,
   ) => {
-    if (playlistId === currentPlaylist.id) {
-      setCurrentPlaylist({ id: playlistId, songs: newList });
+    if (playlistId === currentPlaylist.playlistId) {
+      setCurrentPlaylist({ playlistId, songs: newList });
     } else {
       setLocalSongList(newList);
     }
-    if (playlistId === currentTrack.playlistId && currentTrack.index >= 0) {
-      const playingSrc = songList[currentTrack.index].src;
+    if (playlistId === currentPlaylist.playlistId && currentTrackIndex >= 0) {
+      const playingSrc = songList[currentTrackIndex].src;
       const newCi = newList.findIndex((s) => s.src === playingSrc);
-      if (newCi !== currentTrack.index) {
-        setCurrentTrack({ ...currentTrack, index: newCi });
+      if (newCi !== currentTrackIndex) {
+        setCurrentTrackIndex(newCi);
         const store = await load("last_played.json");
         await store.set("index", newCi);
       }
@@ -56,8 +60,8 @@ const SongList: React.FC = () => {
   };
 
   const handlePlay = (index: number) => {
-    if (playlistId !== currentPlaylist.id) {
-      setCurrentPlaylist({ id: playlistId, songs: songList });
+    if (playlistId !== currentPlaylist.playlistId) {
+      setCurrentPlaylist({ playlistId, songs: songList });
     }
     setIsPlaying(true);
     invoke("play_music", { playlistId, index });
@@ -70,8 +74,8 @@ const SongList: React.FC = () => {
       src,
     ]);
     const newList = songList.filter((s) => s.src !== src);
-    if (playlistId === currentPlaylist.id) {
-      setCurrentPlaylist({ id: playlistId, songs: newList });
+    if (playlistId === currentPlaylist.playlistId) {
+      setCurrentPlaylist({ playlistId, songs: newList });
     } else {
       setLocalSongList(newList);
     }
@@ -91,7 +95,7 @@ const SongList: React.FC = () => {
       <SongTable
         list={songList}
         currentIndex={
-          playlistId === currentTrack.playlistId ? currentTrack.index : -1
+          playlistId === currentPlaylist.playlistId ? currentTrackIndex : -1
         }
         onPlay={handlePlay}
         onRemove={handleRemoveSong}

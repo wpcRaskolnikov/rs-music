@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useDeferredValue, useEffect, useState } from "react";
 import {
   Box,
   Table,
@@ -24,15 +24,17 @@ interface SearchResult extends MusicMetadata {
 
 const SearchList: React.FC = () => {
   const query = useAtomValue(searchQueryAtom);
+  const deferredQuery = useDeferredValue(query);
+  const isStale = query !== deferredQuery;
   const [results, setResults] = useState<SearchResult[]>([]);
   const setIsPlaying = useSetAtom(isPlayingAtom);
 
   useEffect(() => {
-    if (!query.trim()) {
+    if (!deferredQuery.trim()) {
       setResults([]);
       return;
     }
-    const keyword = `%${query.trim()}%`;
+    const keyword = `%${deferredQuery.trim()}%`;
     (async () => {
       const db = await getDb();
       const rows = await db.select<SearchResult[]>(
@@ -46,7 +48,7 @@ const SearchList: React.FC = () => {
       );
       setResults(rows);
     })();
-  }, [query]);
+  }, [deferredQuery]);
 
   const handlePlay = async (result: SearchResult) => {
     const db = await getDb();
@@ -67,13 +69,19 @@ const SearchList: React.FC = () => {
     return <EmptyText text="输入关键词搜索本地歌曲" />;
   }
 
-  if (!results.length) {
+  if (!results.length && !isStale) {
     return <EmptyText text="无搜索结果" />;
   }
 
   return (
     <Box sx={{ height: "100%", overflow: "hidden", p: 2 }}>
-      <TableContainer sx={{ height: "100%" }}>
+      <TableContainer
+        sx={{
+          height: "100%",
+          opacity: isStale ? 0.5 : 1,
+          transition: "opacity 0.15s ease",
+        }}
+      >
         <Table size="small" stickyHeader>
           <TableHead>
             <TableRow>

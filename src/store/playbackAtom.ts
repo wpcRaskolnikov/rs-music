@@ -8,23 +8,17 @@ export interface MusicMetadata {
   duration: number;
 }
 
-export interface PlaylistMenu {
-  label: string;
-  playlistId: string;
-}
-
-export const playlistMenusAtom = atom<PlaylistMenu[]>([]);
-
 export const searchQueryAtom = atom("");
 export const isPlayingAtom = atom(false);
 export const currentTimeAtom = atom(0);
-export const currentTrackAtom = atom({ index: -1, playlistId: "" });
-export const currentPlaylistAtom = atom<{ id: string; songs: MusicMetadata[] }>(
-  { id: "", songs: [] },
-);
+export const currentTrackIndexAtom = atom(-1);
+export const currentPlaylistAtom = atom<{
+  playlistId: string;
+  songs: MusicMetadata[];
+}>({ playlistId: "", songs: [] });
 
 export const currentTrackInfoAtom = atom<MusicMetadata>((get) => {
-  const { index } = get(currentTrackAtom);
+  const index = get(currentTrackIndexAtom);
   const { songs } = get(currentPlaylistAtom);
   if (index < 0 || index >= songs.length) {
     return {

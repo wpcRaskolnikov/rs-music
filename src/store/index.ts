@@ -2,13 +2,12 @@ export {
   searchQueryAtom,
   isPlayingAtom,
   currentTimeAtom,
-  currentTrackAtom,
+  currentTrackIndexAtom,
   currentPlaylistAtom,
   currentTrackInfoAtom,
-  playlistMenusAtom,
 } from "./playbackAtom";
 
-export type { MusicMetadata, PlaylistMenu } from "./playbackAtom";
+export type { MusicMetadata } from "./playbackAtom";
 
 export {
   settingsStore,
