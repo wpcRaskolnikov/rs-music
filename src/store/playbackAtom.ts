@@ -8,6 +8,8 @@ export interface MusicMetadata {
   duration: number;
 }
 
+export const selectedPlaylistIdAtom = atom("");
+
 export const searchQueryAtom = atom("");
 export const isPlayingAtom = atom(false);
 export const currentTimeAtom = atom(0);

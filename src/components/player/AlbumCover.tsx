@@ -20,19 +20,19 @@ const AlbumCover: React.FC = () => {
       .catch(() => setCover(null));
   }, [src]);
 
-  if (!cover) return <div>加载中...</div>;
-
   return (
     <>
       <CardMedia
         component="img"
-        image={cover}
+        image={cover ?? ""}
         alt="Album Cover"
         onClick={() => setOpen(true)}
         sx={{
           height: "100%",
           width: "auto",
           cursor: "pointer",
+          opacity: cover ? 1 : 0,
+          pointerEvents: cover ? "auto" : "none",
           transition: "all 0.3s ease",
           borderRadius: 1,
           "&:hover": {
@@ -80,7 +80,7 @@ const AlbumCover: React.FC = () => {
           </IconButton>
           <CardMedia
             component="img"
-            image={cover}
+            image={cover ?? ""}
             alt="Album Cover"
             sx={{
               maxHeight: "80vh",

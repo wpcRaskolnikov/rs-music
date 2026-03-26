@@ -1,4 +1,5 @@
 export {
+  selectedPlaylistIdAtom,
   searchQueryAtom,
   isPlayingAtom,
   currentTimeAtom,

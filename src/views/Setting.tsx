@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import {
   Box,
   Button,
+  Grid,
   Typography,
   Chip,
   Tooltip,
@@ -71,20 +72,12 @@ const Setting: React.FC = () => {
           全部重置
         </Button>
       </Box>
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr 1fr",
-          gap: 1,
-          mb: 1,
-          maxWidth: 780,
-        }}
-      >
+      <Grid container spacing={1} sx={{ mb: 1, maxWidth: 780 }}>
         {(Object.keys(SHORTCUT_LABELS) as Array<keyof Shortcuts>).map((key) => {
           const conflict = conflictKey(key, shortcuts[key]);
           const isRecording = recording === key;
           return (
-            <Box key={key} display="flex" alignItems="center" gap={1}>
+            <Grid key={key} size={4} display="flex" alignItems="center" gap={1}>
               <Typography sx={{ width: 90, flexShrink: 0 }} variant="body2">
                 {SHORTCUT_LABELS[key]}
               </Typography>
@@ -138,10 +131,10 @@ const Setting: React.FC = () => {
                   <RestartAltIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
-            </Box>
+            </Grid>
           );
         })}
-      </Box>
+      </Grid>
       <Divider sx={{ mt: 2, mb: 2 }} />
 
       {/* 备份与恢复 */}

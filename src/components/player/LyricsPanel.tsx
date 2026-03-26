@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useAtom, useAtomValue } from "jotai";
 import { Box, List, ListItem, ListItemText, Typography } from "@mui/material";
-import { motion, useSpring, AnimatePresence } from "framer-motion";
+import { motion, useSpring, AnimatePresence, animate } from "motion/react";
 import {
   currentTrackInfoAtom,
   lyricsAtom,
@@ -10,10 +10,8 @@ import {
 } from "../../store";
 import type { LrcLine } from "../../store";
 
-/** 根据与活动行的距离计算每行样式 */
 function getLineStyle(i: number, activeIndex: number) {
-  // 还没播放到任何一行时，所有行保持同等亮度
-  if (activeIndex < 0) return { opacity: 0.55, scale: 1 };
+  if (activeIndex < 0) return { opacity: 0.55 };
 
   const isActive = i === activeIndex;
   const isPast = i < activeIndex;
@@ -24,17 +22,48 @@ function getLineStyle(i: number, activeIndex: number) {
     : isPast
       ? 0.35
       : Math.max(0.25, 0.55 - dist * 0.04);
-  const scale = isActive ? 1.05 : 1;
 
-  return { opacity, scale };
+  return { opacity };
 }
 
 const springConfig = { stiffness: 18, damping: 12, mass: 1.2 };
-const lineTransition = {
-  type: "tween" as const,
-  duration: 0.8,
-  ease: "easeInOut" as const,
-};
+
+// 单行歌词：只有 isActive 变化时才重渲染，opacity 由父组件命令式驱动
+interface LyricLineProps {
+  line: LrcLine;
+  isActive: boolean;
+  elRef: (el: HTMLDivElement | null) => void;
+}
+
+const LyricLine = React.memo(({ line, isActive, elRef }: LyricLineProps) => (
+  <div ref={elRef}>
+    <ListItem disableGutters sx={{ justifyContent: "center", py: 0.8 }}>
+      <ListItemText
+        primary={line.content}
+        secondary={line.translation ?? undefined}
+        sx={{ textAlign: "center", m: 0 }}
+        slotProps={{
+          primary: {
+            sx: {
+              fontSize: isActive ? "1.15rem" : "0.95rem",
+              fontWeight: isActive ? 700 : 400,
+              color: "#ffffff",
+              lineHeight: 1.6,
+            },
+          },
+          secondary: {
+            sx: {
+              fontSize: isActive ? "0.85rem" : "0.72rem",
+              color: "rgba(255,255,255,0.7)",
+              lineHeight: 1.5,
+              mt: 0.3,
+            },
+          },
+        }}
+      />
+    </ListItem>
+  </div>
+));
 
 const LyricsPanel: React.FC = () => {
   const { src } = useAtomValue(currentTrackInfoAtom);
@@ -43,7 +72,17 @@ const LyricsPanel: React.FC = () => {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
-  const lineRefs = useRef<(HTMLLIElement | null)[]>([]);
+  // 改为指向外层 div，同时用于滚动计算和命令式 opacity 动画
+  const lineRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const elRefCallbacks = useRef<((el: HTMLDivElement | null) => void)[]>([]);
+  const getElRef = useCallback((i: number) => {
+    if (!elRefCallbacks.current[i]) {
+      elRefCallbacks.current[i] = (el: HTMLDivElement | null) => {
+        lineRefs.current[i] = el;
+      };
+    }
+    return elRefCallbacks.current[i];
+  }, []);
 
   const [isUserScrolling, setIsUserScrolling] = useState(false);
   const scrollResumeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -76,11 +115,29 @@ const LyricsPanel: React.FC = () => {
     return () => ro.disconnect();
   }, []);
 
+  // ---------- 命令式 opacity 动画 ----------
+  // 切歌时立即设置，无动画
+  useEffect(() => {
+    lineRefs.current.forEach((el, i) => {
+      if (!el) return;
+      el.style.opacity = String(getLineStyle(i, activeIndex).opacity);
+    });
+  }, [lines.length]);
+
+  // activeIndex 变化时动画过渡
+  useEffect(() => {
+    if (lines.length === 0) return;
+    lineRefs.current.forEach((el, i) => {
+      if (!el) return;
+      const { opacity } = getLineStyle(i, activeIndex);
+      animate(el, { opacity }, { duration: 0.4, ease: "easeOut" });
+    });
+  }, [activeIndex]);
+
   // ---------- spring 滚动偏移 ----------
   const targetY = useRef(0);
   const springY = useSpring(0, springConfig);
 
-  // 限制滚动范围
   const clampY = useCallback(
     (y: number) => {
       if (!listRef.current || containerH === 0) return y;
@@ -90,7 +147,6 @@ const LyricsPanel: React.FC = () => {
     [containerH],
   );
 
-  // 计算目标偏移：当前行中心 → 容器中心
   const computeTargetY = useCallback(() => {
     if (
       activeIndex < 0 ||
@@ -107,7 +163,6 @@ const LyricsPanel: React.FC = () => {
     targetY.current = clampY(springY.get() - offset);
   }, [activeIndex, containerH, springY, clampY]);
 
-  // activeIndex 或 containerH 变化时更新滚动
   useEffect(() => {
     if (lines.length === 0 || containerH === 0) return;
     computeTargetY();
@@ -116,7 +171,6 @@ const LyricsPanel: React.FC = () => {
     }
   }, [activeIndex, containerH, lines.length, isUserScrolling]);
 
-  // 切歌时立即跳转（无动画）
   useEffect(() => {
     computeTargetY();
     springY.jump(targetY.current);
@@ -204,53 +258,14 @@ const LyricsPanel: React.FC = () => {
             <motion.div style={{ y: springY, width: "100%", maxWidth: 600 }}>
               <List ref={listRef} disablePadding>
                 <Box sx={{ height: "50vh" }} />
-                {lines.map((line, i) => {
-                  const { opacity, scale } = getLineStyle(i, activeIndex);
-                  return (
-                    <motion.div
-                      key={i}
-                      animate={{ opacity, scale }}
-                      transition={lineTransition}
-                    >
-                      <ListItem
-                        ref={(el: HTMLLIElement | null) => {
-                          lineRefs.current[i] = el;
-                        }}
-                        disableGutters
-                        sx={{ justifyContent: "center", py: 0.8 }}
-                      >
-                        <ListItemText
-                          primary={line.content}
-                          secondary={line.translation ?? undefined}
-                          sx={{ textAlign: "center", m: 0 }}
-                          slotProps={{
-                            primary: {
-                              sx: {
-                                fontSize:
-                                  i === activeIndex ? "1.15rem" : "0.95rem",
-                                fontWeight: i === activeIndex ? 700 : 400,
-                                color: "#ffffff",
-                                lineHeight: 1.6,
-                                transition:
-                                  "font-size 0.3s ease, font-weight 0.3s ease",
-                              },
-                            },
-                            secondary: {
-                              sx: {
-                                fontSize:
-                                  i === activeIndex ? "0.85rem" : "0.72rem",
-                                color: "rgba(255,255,255,0.7)",
-                                lineHeight: 1.5,
-                                mt: 0.3,
-                                transition: "font-size 0.3s ease",
-                              },
-                            },
-                          }}
-                        />
-                      </ListItem>
-                    </motion.div>
-                  );
-                })}
+                {lines.map((line, i) => (
+                  <LyricLine
+                    key={i}
+                    line={line}
+                    isActive={i === activeIndex}
+                    elRef={getElRef(i)}
+                  />
+                ))}
                 <Box sx={{ height: "50vh" }} />
               </List>
             </motion.div>

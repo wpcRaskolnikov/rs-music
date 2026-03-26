@@ -5,17 +5,18 @@ import {
   IconButton,
   List,
   ListItem,
-  ListItemButton,
   ListItemText,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import HeadphonesIcon from "@mui/icons-material/Headphones";
 import DeleteIcon from "@mui/icons-material/Delete";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import GraphicEqIcon from "@mui/icons-material/GraphicEq";
+import RefreshIcon from "@mui/icons-material/Refresh";
 import { DragDropProvider } from "@dnd-kit/react";
 import { useSortable } from "@dnd-kit/react/sortable";
-import { arrayMove } from "@dnd-kit/helpers";
+import { move } from "@dnd-kit/helpers";
 import EmptyText from "../EmptyText";
 import { MusicMetadata } from "../../store";
 import { formatTime } from "../../utils";
@@ -23,12 +24,12 @@ import { formatTime } from "../../utils";
 const GRID = "32px 1fr 160px 160px 88px 60px";
 
 interface SortableRowProps {
+  ref?: (el: Element | null) => void;
   item: MusicMetadata;
   index: number;
   isActive: boolean;
   onPlay: () => void;
   onRemove: () => void;
-  measureElement: (el: Element | null) => void;
 }
 
 function SortableRow({
@@ -37,7 +38,7 @@ function SortableRow({
   isActive,
   onPlay,
   onRemove,
-  measureElement,
+  ref,
 }: SortableRowProps) {
   const [element, setElement] = useState<Element | null>(null);
   const handleRef = useRef<HTMLElement | null>(null);
@@ -46,118 +47,116 @@ function SortableRow({
     index,
     element,
     handle: handleRef,
-    feedback: "clone",
+    feedback: "default",
   });
 
   return (
     <ListItem
-      ref={(el: HTMLLIElement | null) => {
+      ref={(el) => {
         setElement(el);
-        measureElement(el);
+        ref?.(el);
       }}
       data-index={index}
-      data-active={isActive || undefined}
-      disablePadding
+      onDoubleClick={onPlay}
       sx={{
         opacity: isDragging ? 0.3 : 1,
         borderBottom: "1px solid",
         borderColor: "divider",
+        display: "grid",
+        gridTemplateColumns: GRID,
+        alignItems: "center",
+        gap: 1,
+        py: 0.75,
+        px: 2,
+        bgcolor: isActive ? "action.selected" : "transparent",
+        "&:hover": { bgcolor: isActive ? "action.selected" : "action.hover" },
       }}
     >
-      <ListItemButton
-        dense
-        selected={isActive}
-        onDoubleClick={onPlay}
+      <Box
+        ref={handleRef}
         sx={{
-          display: "grid",
-          gridTemplateColumns: GRID,
-          alignItems: "flex-start",
-          gap: 1,
-          py: 0.75,
+          cursor: "grab",
+          display: "flex",
+          alignItems: "center",
         }}
       >
-        <Box
-          ref={handleRef}
-          sx={{
-            cursor: "grab",
-            display: "flex",
-            alignItems: "center",
-            alignSelf: "center",
-          }}
-        >
-          {isActive ? (
-            <GraphicEqIcon fontSize="small" color="primary" />
-          ) : (
-            <DragIndicatorIcon fontSize="small" color="disabled" />
-          )}
-        </Box>
+        {isActive ? (
+          <GraphicEqIcon fontSize="small" color="primary" />
+        ) : (
+          <DragIndicatorIcon fontSize="small" color="disabled" />
+        )}
+      </Box>
 
-        <ListItemText
-          primary={item.title}
-          sx={{ m: 0, minWidth: 0 }}
-          slotProps={{
-            primary: {
-              sx: {
-                fontSize: "0.875rem",
-                color: isActive ? "primary.main" : "text.primary",
-                fontWeight: isActive ? 600 : "normal",
-                wordBreak: "break-word",
-              },
+      <ListItemText
+        primary={item.title}
+        sx={{ m: 0, minWidth: 0 }}
+        slotProps={{
+          primary: {
+            sx: {
+              fontSize: "0.875rem",
+              color: isActive ? "primary.main" : "text.primary",
+              fontWeight: isActive ? 600 : "normal",
+              wordBreak: "break-word",
             },
-          }}
-        />
+          },
+        }}
+      />
 
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          sx={{ wordBreak: "break-word" }}
-        >
-          {item.artist}
-        </Typography>
+      <Typography
+        variant="body2"
+        color="text.secondary"
+        sx={{ wordBreak: "break-word" }}
+      >
+        {item.artist}
+      </Typography>
 
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          sx={{ wordBreak: "break-word" }}
-        >
-          {item.album}
-        </Typography>
+      <Typography
+        variant="body2"
+        color="text.secondary"
+        sx={{ wordBreak: "break-word" }}
+      >
+        {item.album}
+      </Typography>
 
-        <Box sx={{ display: "flex", justifyContent: "center" }}>
-          <IconButton size="small" onClick={onPlay}>
-            <HeadphonesIcon fontSize="small" />
-          </IconButton>
-          <IconButton size="small" onClick={onRemove}>
-            <DeleteIcon fontSize="small" />
-          </IconButton>
-        </Box>
+      <Box sx={{ display: "flex", justifyContent: "center" }}>
+        <IconButton size="small" onClick={onPlay}>
+          <HeadphonesIcon fontSize="small" />
+        </IconButton>
+        <IconButton size="small" onClick={onRemove}>
+          <DeleteIcon fontSize="small" />
+        </IconButton>
+      </Box>
 
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          sx={{ textAlign: "right", whiteSpace: "nowrap", pt: 0.25 }}
-        >
-          {formatTime(item.duration)}
-        </Typography>
-      </ListItemButton>
+      <Typography
+        variant="body2"
+        color="text.secondary"
+        sx={{ textAlign: "right", whiteSpace: "nowrap" }}
+      >
+        {formatTime(item.duration)}
+      </Typography>
     </ListItem>
   );
 }
 
-const SongTable: React.FC<{
+interface SongTableProps {
   list: MusicMetadata[];
   currentIndex: number;
   onPlay: (index: number) => void;
-  onRemove: (src: string) => void;
-  onReorder: (newList: MusicMetadata[], from: number, to: number) => void;
-}> = ({ list, currentIndex, onPlay, onRemove, onReorder }) => {
-  const scrollRef = useRef<HTMLDivElement>(null);
+  onRemove: (index: number) => void;
+  onReorder: (from: number, to: number) => void;
+  onRefresh: () => void;
+}
 
-  // 拖拽期间用 localList 驱动渲染，拖完提交给外部
+const SongTable: React.FC<SongTableProps> = ({
+  list,
+  currentIndex,
+  onPlay,
+  onRemove,
+  onReorder,
+  onRefresh,
+}) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [localList, setLocalList] = useState(list);
-  const snapshot = useRef(list);
-  const localListRef = useRef(localList);
-  localListRef.current = localList;
 
   useEffect(() => {
     setLocalList(list);
@@ -175,112 +174,94 @@ const SongTable: React.FC<{
   const virtualItems = virtualizer.getVirtualItems();
 
   useEffect(() => {
-    if (currentIndex >= 0 && currentIndex < localList.length) {
-      virtualizer.scrollToIndex(currentIndex, { align: "center" });
-    }
-  }, [currentIndex, localList.length]);
-
-  useEffect(() => {
     const handler = () => {
       if (currentIndex >= 0 && currentIndex < localList.length) {
         virtualizer.scrollToIndex(currentIndex, { align: "center" });
       }
     };
+    handler();
     window.addEventListener("locate-playlist", handler);
     return () => window.removeEventListener("locate-playlist", handler);
   }, [currentIndex, localList.length]);
 
   return (
-    <Box sx={{ flex: 1, height: "100%", overflow: "hidden", p: 2 }}>
-      {localList.length ? (
-        <Box ref={scrollRef} sx={{ height: "100%", overflowY: "auto" }}>
-          {/* Sticky 表头 */}
-          <Box
-            sx={{
-              position: "sticky",
-              top: 0,
-              zIndex: 1,
-              bgcolor: "background.paper",
-              display: "grid",
-              gridTemplateColumns: GRID,
-              alignItems: "center",
-              gap: 1,
-              px: 2,
-              py: 1,
-              borderBottom: "2px solid",
-              borderColor: "divider",
-            }}
-          >
-            <Box />
-            <Typography
-              variant="caption"
-              fontWeight={600}
-              color="text.secondary"
-            >
-              歌曲名
-            </Typography>
-            <Typography
-              variant="caption"
-              fontWeight={600}
-              color="text.secondary"
-            >
-              歌手
-            </Typography>
-            <Typography
-              variant="caption"
-              fontWeight={600}
-              color="text.secondary"
-            >
-              专辑
-            </Typography>
-            <Typography
-              variant="caption"
-              fontWeight={600}
-              color="text.secondary"
-              textAlign="center"
-            >
-              操作
-            </Typography>
-            <Typography
-              variant="caption"
-              fontWeight={600}
-              color="text.secondary"
-              textAlign="right"
-              noWrap
-            >
-              时长
-            </Typography>
-          </Box>
+    <Box
+      sx={{
+        flex: 1,
+        height: "100%",
+        overflow: "hidden",
+        p: 2,
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      {/* 表头 */}
+      <Box
+        sx={{
+          bgcolor: "background.paper",
+          display: "grid",
+          gridTemplateColumns: GRID,
+          alignItems: "center",
+          gap: 1,
+          px: 2,
+          py: 1,
+          borderBottom: "2px solid",
+          borderColor: "divider",
+        }}
+      >
+        <Tooltip title="刷新" arrow>
+          <IconButton size="small" onClick={onRefresh}>
+            <RefreshIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        <Typography variant="caption" fontWeight={600} color="text.secondary">
+          歌曲名
+        </Typography>
+        <Typography variant="caption" fontWeight={600} color="text.secondary">
+          歌手
+        </Typography>
+        <Typography variant="caption" fontWeight={600} color="text.secondary">
+          专辑
+        </Typography>
+        <Typography
+          variant="caption"
+          fontWeight={600}
+          color="text.secondary"
+          textAlign="center"
+        >
+          操作
+        </Typography>
+        <Typography
+          variant="caption"
+          fontWeight={600}
+          color="text.secondary"
+          textAlign="right"
+          noWrap
+        >
+          时长
+        </Typography>
+      </Box>
 
-          {/* 虚拟滚动列表 */}
+      {/* 虚拟滚动列表 */}
+      {localList.length ? (
+        <Box ref={scrollRef} sx={{ flex: 1, overflowY: "auto" }}>
           <DragDropProvider
-            onDragStart={() => {
-              snapshot.current = structuredClone(localList);
-            }}
             onDragOver={(event) => {
-              const { source, target } = event.operation;
-              if (!source || !target || source.id === target.id) return;
               setLocalList((items) => {
-                const from = items.findIndex(
-                  (i) => i.src === String(source.id),
-                );
-                const to = items.findIndex((i) => i.src === String(target.id));
-                if (from === -1 || to === -1 || from === to) return items;
-                return arrayMove(items, from, to);
+                const map = new Map(items.map((item) => [item.src, item]));
+                const ids = items.map((item) => ({ id: item.src }));
+                return move(ids, event).map(({ id }) => map.get(id)!);
               });
             }}
             onDragEnd={(event) => {
-              if (event.canceled || !event.operation.source) {
-                setLocalList(snapshot.current);
+              const { source } = event.operation;
+              if (event.canceled || !source) {
+                setLocalList(list);
                 return;
               }
-              const current = localListRef.current;
-              const src = String(event.operation.source.id);
-              const from = snapshot.current.findIndex(
-                (item) => item.src === src,
-              );
-              const to = current.findIndex((item) => item.src === src);
-              onReorder(current, from, to);
+              const from = list.findIndex((i) => i.src === source.id);
+              const to = localList.findIndex((i) => i.src === source.id);
+              onReorder(from, to);
             }}
           >
             <Box
@@ -299,6 +280,7 @@ const SongTable: React.FC<{
               >
                 {virtualItems.map((virtualRow) => (
                   <SortableRow
+                    ref={virtualizer.measureElement}
                     key={virtualRow.key}
                     item={localList[virtualRow.index]}
                     index={virtualRow.index}
@@ -307,8 +289,7 @@ const SongTable: React.FC<{
                       list[currentIndex]?.src
                     }
                     onPlay={() => onPlay(virtualRow.index)}
-                    onRemove={() => onRemove(localList[virtualRow.index].src)}
-                    measureElement={virtualizer.measureElement}
+                    onRemove={() => onRemove(virtualRow.index)}
                   />
                 ))}
               </List>

@@ -6,17 +6,17 @@ import CloseIcon from "@mui/icons-material/Close";
 import ClearIcon from "@mui/icons-material/Clear";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useAtom } from "jotai";
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import { searchQueryAtom } from "../store";
 
 const Search: React.FC = () => {
   const [query, setQuery] = useAtom(searchQueryAtom);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setQuery(value);
-    navigate("/search");
+    setQuery(e.target.value);
+    if (location.pathname !== "/search") navigate("/search");
   };
 
   return (

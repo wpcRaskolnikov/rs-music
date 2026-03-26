@@ -17,7 +17,11 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 import { useAtom } from "jotai";
 import { v4 as uuidv4 } from "uuid";
-import { MusicMetadata, getDb, currentPlaylistAtom } from "../../store";
+import {
+  getDb,
+  currentPlaylistAtom,
+  selectedPlaylistIdAtom,
+} from "../../store";
 import NewDialog from "./NewDialog";
 import RenameDialog from "./RenameDialog";
 import { useLatest } from "../../utils";
@@ -27,26 +31,18 @@ export interface PlaylistMenu {
   playlistId: string;
 }
 
-interface PlaylistPanelProps {
-  onSelect: (id: string) => void;
-  onSelectedImported: () => void;
-}
-
-const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
-  onSelect,
-  onSelectedImported,
-}) => {
+const PlaylistPanel: React.FC = () => {
   const [currentPlaylist, setCurrentPlaylist] = useAtom(currentPlaylistAtom);
+  const [selectedId, setSelectedId] = useAtom(selectedPlaylistIdAtom);
   const [menus, setMenus] = useState<PlaylistMenu[]>([]);
-  const [selectedId, setSelectedId] = useState(currentPlaylist.playlistId);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [contextTarget, setContextTarget] = useState<PlaylistMenu | null>(null);
   const [openNewDialog, setOpenNewDialog] = useState(false);
   const [openRenameDialog, setOpenRenameDialog] = useState(false);
+  const selectedIdRef = useLatest(selectedId);
 
   const handleSelect = (id: string) => {
     setSelectedId(id);
-    onSelect(id);
   };
 
   useEffect(() => {
@@ -58,7 +54,7 @@ const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
       );
       if (rows?.length) {
         setMenus(rows);
-        if (!selectedId) {
+        if (!selectedIdRef.current) {
           handleSelect(rows[0].playlistId);
         }
       }
@@ -84,15 +80,6 @@ const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
     setContextTarget(menu);
   };
 
-  const reloadPlaylist = async (id: string) => {
-    const db = await getDb();
-    const rows = await db.select<MusicMetadata[]>(
-      "SELECT * FROM music WHERE playlist_id = ? ORDER BY sort_order",
-      [id],
-    );
-    setCurrentPlaylist({ playlistId: id, songs: rows });
-  };
-
   const handleImportFiles = async (menu: PlaylistMenu) => {
     const file = await open({
       multiple: true,
@@ -104,11 +91,6 @@ const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
       path: file,
       playlistId: menu.playlistId,
     });
-    if (menu.playlistId === currentPlaylist.playlistId) {
-      reloadPlaylist(menu.playlistId);
-    } else if (menu.playlistId === selectedId) {
-      onSelectedImported();
-    }
   };
 
   const handleImportFolder = async (menu: PlaylistMenu) => {
@@ -118,11 +100,6 @@ const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
       path: file,
       playlistId: menu.playlistId,
     });
-    if (menu.playlistId === currentPlaylist.playlistId) {
-      reloadPlaylist(menu.playlistId);
-    } else if (menu.playlistId === selectedId) {
-      onSelectedImported();
-    }
   };
 
   const handleCreate = async (label: string) => {
@@ -148,8 +125,12 @@ const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
 
   const handleRemove = async (menu: PlaylistMenu) => {
     const db = await getDb();
-    db.execute("DELETE FROM playlist WHERE playlist_id = ?", [menu.playlistId]);
-    db.execute("DELETE FROM music WHERE playlist_id = ?", [menu.playlistId]);
+    await db.execute("DELETE FROM playlist WHERE playlist_id = ?", [
+      menu.playlistId,
+    ]);
+    await db.execute("DELETE FROM music WHERE playlist_id = ?", [
+      menu.playlistId,
+    ]);
     const newMenus = menus.filter((p) => p.playlistId !== menu.playlistId);
     setMenus(newMenus);
     if (menu.playlistId === currentPlaylist.playlistId) {
