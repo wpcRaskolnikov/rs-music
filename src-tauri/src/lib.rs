@@ -1,4 +1,5 @@
 mod db;
+mod lrc;
 mod music;
 mod tag;
 mod tray;
@@ -26,7 +27,7 @@ pub fn run() {
             music::resume_music,
             music::stop_music,
             tag::get_album_cover,
-            tag::get_lyrics,
+            lrc::get_lyrics,
             music::seek_music,
             music::set_volume,
             music::set_play_mode,
