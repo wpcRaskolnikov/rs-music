@@ -88,8 +88,13 @@ pub fn parse_lyrics_content(content: String) -> Option<Vec<LrcLine>> {
             let right = map.range(ts..).next().map(|(&k, _)| k);
             let key = match (left, right) {
                 (Some(l), Some(r)) => {
-                    let dl = ts - l; let dr = r - ts;
-                    if dl <= dr { (dl <= tol).then_some(l) } else { (dr <= tol).then_some(r) }
+                    let dl = ts - l;
+                    let dr = r - ts;
+                    if dl <= dr {
+                        (dl <= tol).then_some(l)
+                    } else {
+                        (dr <= tol).then_some(r)
+                    }
                 }
                 (Some(l), None) if ts - l <= tol => Some(l),
                 (None, Some(r)) if r - ts <= tol => Some(r),
