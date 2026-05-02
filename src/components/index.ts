@@ -13,3 +13,6 @@ export type { PlaylistMenu } from "./songlist/PlaylistPanel";
 export { default as SongTable } from "./songlist/SongTable";
 export { default as NewDialog } from "./songlist/NewDialog";
 export { default as RenameDialog } from "./songlist/RenameDialog";
+
+export { default as ShortcutSection } from "./settings/ShortcutSection";
+export { default as UserApiPanel } from "./settings/UserApiPanel";

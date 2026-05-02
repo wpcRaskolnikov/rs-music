@@ -17,9 +17,11 @@ export {
   isMutedAtom,
   playModeAtom,
   shortcutsAtom,
+  userApiListAtom,
+  selectedApiIdAtom,
 } from "./settingsAtom";
 
-export type { Shortcuts } from "./settingsAtom";
+export type { Shortcuts, UserApiMeta } from "./settingsAtom";
 
 export { lyricsAtom, activeLyricIndexAtom } from "./lyricsAtom";
 

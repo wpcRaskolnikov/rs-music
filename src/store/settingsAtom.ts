@@ -7,9 +7,15 @@ function atomWithSettings<T>(key: string, initialValue: T) {
   const base = atom(initialValue);
   return atom(
     (get) => get(base),
-    (_get, set, newValue: T) => {
-      set(base, newValue);
-      settingsStore.then((store) => store.set(key, newValue));
+    (get, set, update: T | ((prev: T) => T)) => {
+      const prev = get(base);
+      const next =
+        typeof update === "function"
+          ? (update as (prev: T) => T)(prev)
+          : update;
+
+      set(base, next);
+      settingsStore.then((store) => store.set(key, next));
     },
   );
 }
@@ -22,7 +28,6 @@ export interface Shortcuts {
   prevSong: string;
   nextSong: string;
 }
-
 export const defaultShortcuts: Shortcuts = {
   playPause: "Space",
   mute: "KeyM",
@@ -31,11 +36,22 @@ export const defaultShortcuts: Shortcuts = {
   prevSong: "ArrowLeft",
   nextSong: "ArrowRight",
 };
-
-export const volumeAtom = atomWithSettings("volume", 1);
-export const isMutedAtom = atomWithSettings("isMuted", false);
-export const playModeAtom = atomWithSettings("playMode", "listLoop");
 export const shortcutsAtom = atomWithSettings<Shortcuts>(
   "shortcuts",
   defaultShortcuts,
 );
+
+export const volumeAtom = atomWithSettings("volume", 1);
+export const isMutedAtom = atomWithSettings("isMuted", false);
+export const playModeAtom = atomWithSettings("playMode", "listLoop");
+
+export interface UserApiMeta {
+  id: string;
+  name: string;
+  description: string;
+  version: string;
+  author: string;
+  scriptContent: string;
+}
+export const userApiListAtom = atomWithSettings<UserApiMeta[]>("userApis", []);
+export const selectedApiIdAtom = atomWithSettings<string>("selectedApiId", "");
