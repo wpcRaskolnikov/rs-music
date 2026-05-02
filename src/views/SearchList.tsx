@@ -9,6 +9,9 @@ import {
   TableContainer,
   IconButton,
   Chip,
+  Tabs,
+  Tab,
+  Typography,
 } from "@mui/material";
 import HeadphonesIcon from "@mui/icons-material/Headphones";
 import { EmptyText } from "../components";
@@ -28,6 +31,7 @@ const SearchList: React.FC = () => {
   const isStale = query !== deferredQuery;
   const [results, setResults] = useState<SearchResult[]>([]);
   const setIsPlaying = useSetAtom(isPlayingAtom);
+  const [tabValue, setTabValue] = useState(0);
 
   useEffect(() => {
     if (!deferredQuery.trim()) {
@@ -65,62 +69,110 @@ const SearchList: React.FC = () => {
     }
   };
 
+  const showLocal = tabValue === 0;
+  const showOnline = tabValue === 1;
+
+  const header = (
+    <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)} sx={{ px: 2, pt: 1 }}>
+      <Tab label="本地" />
+      <Tab label="在线" />
+    </Tabs>
+  );
+
+  if (showOnline) {
+    return (
+      <Box sx={{ height: "100%", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+        {header}
+        <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Typography color="text.secondary">
+            音源搜索功能尚未实现，敬请期待
+          </Typography>
+        </Box>
+      </Box>
+    );
+  }
+
   if (!query.trim()) {
-    return <EmptyText text="输入关键词搜索本地歌曲" />;
+    return (
+      <Box sx={{ height: "100%", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+        {header}
+        <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <EmptyText text="输入关键词搜索本地歌曲" />
+        </Box>
+      </Box>
+    );
   }
 
   if (!results.length && !isStale) {
-    return <EmptyText text="无搜索结果" />;
+    return (
+      <Box sx={{ height: "100%", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+        {header}
+        <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <EmptyText text="无搜索结果" />
+        </Box>
+      </Box>
+    );
   }
 
   return (
-    <Box sx={{ height: "100%", overflow: "hidden", p: 2 }}>
-      <TableContainer
-        sx={{
-          height: "100%",
-          opacity: isStale ? 0.5 : 1,
-          transition: "opacity 0.15s ease",
-        }}
-      >
-        <Table size="small" stickyHeader>
-          <TableHead>
-            <TableRow>
-              <TableCell>歌曲名</TableCell>
-              <TableCell>歌手</TableCell>
-              <TableCell>专辑</TableCell>
-              <TableCell>来源</TableCell>
-              <TableCell align="center">操作</TableCell>
-              <TableCell sx={{ whiteSpace: "nowrap" }}>时长</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {results.map((item) => (
-              <TableRow
-                key={`${item.playlist_id}:${item.src}`}
-                hover
-                onDoubleClick={() => handlePlay(item)}
-              >
-                <TableCell>{item.title}</TableCell>
-                <TableCell>{item.artist}</TableCell>
-                <TableCell>{item.album}</TableCell>
-                <TableCell>
-                  <Chip
-                    label={item.playlist_label}
-                    size="small"
-                    variant="outlined"
-                  />
-                </TableCell>
-                <TableCell align="center">
-                  <IconButton size="small" onClick={() => handlePlay(item)}>
-                    <HeadphonesIcon fontSize="small" />
-                  </IconButton>
-                </TableCell>
-                <TableCell>{formatTime(item.duration)}</TableCell>
+    <Box sx={{ height: "100%", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+      {header}
+      {tabValue === 0 && (
+        <TableContainer
+          sx={{
+            flex: 1,
+            minHeight: 0,
+            opacity: isStale ? 0.5 : 1,
+            transition: "opacity 0.15s ease",
+          }}
+        >
+          <Table size="small" stickyHeader>
+            <TableHead>
+              <TableRow>
+                <TableCell>歌曲名</TableCell>
+                <TableCell>歌手</TableCell>
+                <TableCell>专辑</TableCell>
+                <TableCell>来源</TableCell>
+                <TableCell align="center">操作</TableCell>
+                <TableCell sx={{ whiteSpace: "nowrap" }}>时长</TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+            </TableHead>
+            <TableBody>
+              {results.map((item) => (
+                <TableRow
+                  key={`${item.playlist_id}:${item.src}`}
+                  hover
+                  onDoubleClick={() => handlePlay(item)}
+                >
+                  <TableCell>{item.title}</TableCell>
+                  <TableCell>{item.artist}</TableCell>
+                  <TableCell>{item.album}</TableCell>
+                  <TableCell>
+                    <Chip
+                      label={item.playlist_label}
+                      size="small"
+                      variant="outlined"
+                    />
+                  </TableCell>
+                  <TableCell align="center">
+                    <IconButton size="small" onClick={() => handlePlay(item)}>
+                      <HeadphonesIcon fontSize="small" />
+                    </IconButton>
+                  </TableCell>
+                  <TableCell>{formatTime(item.duration)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
+      {tabValue === 1 && (
+        <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Typography color="text.secondary">
+            音源搜索功能尚未实现，敬请期待
+          </Typography>
+        </Box>
+      )}
     </Box>
   );
 };
