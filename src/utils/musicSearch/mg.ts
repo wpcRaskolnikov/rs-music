@@ -2,21 +2,12 @@ import type { PlatformResult, OnlineSongInfo } from "./types";
 import type { Source } from "./types";
 import { fetch } from "@tauri-apps/plugin-http";
 import { md5 } from "../crypto";
+import { formatSingerName } from "../index";
 
 const source: Source = "mg";
 const sourceName = "咪咕";
 const DEVICE_ID = "963B7AA0D21511ED807EE5846EC87D20";
 const SIGNATURE_MD5 = "6cdc72a439cef99a3418d2a78aa28c73";
-
-function formatSingerName(singers: any[]): string {
-  if (Array.isArray(singers)) {
-    return singers
-      .map((s) => s.name ?? "")
-      .filter(Boolean)
-      .join("、");
-  }
-  return "";
-}
 
 function createSignature(time: string, str: string) {
   const sign = md5(

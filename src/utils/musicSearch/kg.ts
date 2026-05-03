@@ -1,19 +1,10 @@
 import type { PlatformResult, OnlineSongInfo } from "./types";
 import type { Source } from "./types";
 import { fetch } from "@tauri-apps/plugin-http";
+import { formatSingerName } from "../index";
 
 const source: Source = "kg";
 const sourceName = "酷狗";
-
-function formatSingerName(singers: any[]): string {
-  if (Array.isArray(singers)) {
-    return singers
-      .map((s) => s.name ?? "")
-      .filter(Boolean)
-      .join("、");
-  }
-  return "";
-}
 
 async function doSearch(
   keyword: string,

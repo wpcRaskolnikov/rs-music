@@ -1,6 +1,7 @@
 import { useRef, useEffect } from "react";
 
 const formatTime = (sec: number) => {
+  if (isNaN(sec) || sec <= 0) return "00:00";
   const m = Math.floor(sec / 60)
     .toString()
     .padStart(2, "0");
@@ -16,6 +17,16 @@ export function useLatest<T>(value: T) {
     ref.current = value;
   });
   return ref;
+}
+
+export function formatSingerName(singers: any[]): string {
+  if (Array.isArray(singers)) {
+    return singers
+      .map((s) => s.name ?? "")
+      .filter(Boolean)
+      .join("、");
+  }
+  return "";
 }
 
 export { formatTime };
