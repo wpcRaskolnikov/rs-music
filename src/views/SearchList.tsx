@@ -1,4 +1,8 @@
-import React, { useDeferredValue, useEffect, useState } from "react";
+import React, {
+  useDeferredValue,
+  useEffect,
+  useState,
+} from "react";
 import {
   Box,
   Table,
@@ -11,18 +15,85 @@ import {
   Chip,
   Tabs,
   Tab,
-  Typography,
+  Tooltip,
+  Skeleton,
+  Pagination,
 } from "@mui/material";
 import HeadphonesIcon from "@mui/icons-material/Headphones";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import { EmptyText } from "../components";
 import { invoke } from "@tauri-apps/api/core";
 import { useAtomValue, useSetAtom } from "jotai";
 import { MusicMetadata, getDb, searchQueryAtom, isPlayingAtom } from "../store";
 import { formatTime } from "../utils";
+import { sourceNameMap } from "../utils/musicSearch/types";
+import type { Source } from "../utils/musicSearch/types";
+import { useOnlineSearch } from "../utils/musicSearch/hooks";
+import { LIMIT as WY_LIMIT } from "../utils/musicSearch/wy";
 
 interface SearchResult extends MusicMetadata {
   playlist_id: string;
   playlist_label: string;
+}
+
+const onlineSources: Source[] = ["kw", "kg", "qq", "wy", "mg"];
+
+const tabs = ["本地", ...onlineSources.map((s) => sourceNameMap[s])];
+
+const getPageLimit = (s: Source | null): number => (s === "wy" ? WY_LIMIT : 50);
+
+interface SearchTableProps {
+  header: React.ReactNode;
+  showSource: boolean;
+  body: React.ReactNode;
+  pagination?: React.ReactNode;
+  opacity?: number;
+}
+
+function SearchTable({
+  header,
+  showSource,
+  body,
+  pagination,
+  opacity,
+}: SearchTableProps) {
+  return (
+    <Box
+      sx={{
+        height: "100%",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      {header}
+      <TableContainer
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          ...(opacity !== undefined && {
+            opacity,
+            transition: "opacity 0.15s ease",
+          }),
+        }}
+      >
+        <Table size="small" stickyHeader>
+          <TableHead>
+            <TableRow>
+              <TableCell>歌曲名</TableCell>
+              <TableCell>歌手</TableCell>
+              <TableCell>专辑</TableCell>
+              {showSource && <TableCell>来源</TableCell>}
+              <TableCell align="center">操作</TableCell>
+              <TableCell>时长</TableCell>
+            </TableRow>
+          </TableHead>
+          {body}
+        </Table>
+      </TableContainer>
+      {pagination}
+    </Box>
+  );
 }
 
 const SearchList: React.FC = () => {
@@ -32,9 +103,20 @@ const SearchList: React.FC = () => {
   const [results, setResults] = useState<SearchResult[]>([]);
   const setIsPlaying = useSetAtom(isPlayingAtom);
   const [tabValue, setTabValue] = useState(0);
+  const [onlinePage, setOnlinePage] = useState<Record<Source, number>>({
+    kw: 1,
+    kg: 1,
+    qq: 1,
+    wy: 1,
+    mg: 1,
+  });
 
   useEffect(() => {
-    if (!deferredQuery.trim()) {
+    const source = onlineSources[tabValue - 1];
+    if (source) {
+      setOnlinePage((prev) => ({ ...prev, [source]: 1 }));
+    }
+    if (tabValue !== 0 || !deferredQuery.trim()) {
       setResults([]);
       return;
     }
@@ -52,7 +134,15 @@ const SearchList: React.FC = () => {
       );
       setResults(rows);
     })();
-  }, [deferredQuery]);
+  }, [deferredQuery, tabValue]);
+
+
+  const source = onlineSources[tabValue - 1];
+  const { data, isLoading, error } = useOnlineSearch({
+    source,
+    keyword: deferredQuery.trim(),
+    page: source ? onlinePage[source] : 1,
+  });
 
   const handlePlay = async (result: SearchResult) => {
     const db = await getDb();
@@ -69,111 +159,238 @@ const SearchList: React.FC = () => {
     }
   };
 
-  const showLocal = tabValue === 0;
-  const showOnline = tabValue === 1;
-
   const header = (
-    <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)} sx={{ px: 2, pt: 1 }}>
-      <Tab label="本地" />
-      <Tab label="在线" />
+    <Tabs
+      value={tabValue}
+      onChange={(_, v) => setTabValue(v)}
+      sx={{ px: 2, pt: 1 }}
+      variant="scrollable"
+      scrollButtons="auto"
+    >
+      {tabs.map((label) => (
+        <Tab key={label} label={label} />
+      ))}
     </Tabs>
   );
 
-  if (showOnline) {
+  if (tabValue === 0) {
+    if (!query.trim()) {
+      return (
+        <Box
+          sx={{
+            height: "100%",
+            overflow: "hidden",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          {header}
+          <Box
+            sx={{
+              flex: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <EmptyText text="输入关键词搜索本地歌曲" />
+          </Box>
+        </Box>
+      );
+    }
+
+    if (!results.length && !isStale) {
+      return (
+        <Box
+          sx={{
+            height: "100%",
+            overflow: "hidden",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          {header}
+          <Box
+            sx={{
+              flex: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <EmptyText text="无搜索结果" />
+          </Box>
+        </Box>
+      );
+    }
+
     return (
-      <Box sx={{ height: "100%", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+      <SearchTable
+        header={header}
+        showSource
+        opacity={isStale ? 0.5 : 1}
+        body={
+          <TableBody>
+            {results.map((item) => (
+              <TableRow
+                key={`${item.playlist_id}:${item.src}`}
+                hover
+                onDoubleClick={() => handlePlay(item)}
+              >
+                <TableCell>{item.title}</TableCell>
+                <TableCell>{item.artist}</TableCell>
+                <TableCell>{item.album}</TableCell>
+                <TableCell>
+                  <Chip
+                    label={item.playlist_label}
+                    size="small"
+                    variant="outlined"
+                  />
+                </TableCell>
+                <TableCell align="center">
+                  <IconButton size="small" onClick={() => handlePlay(item)}>
+                    <HeadphonesIcon fontSize="small" />
+                  </IconButton>
+                </TableCell>
+                <TableCell>{formatTime(item.duration)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        }
+      />
+    );
+  }
+
+  const songs = data?.songs ?? [];
+  const total = data?.total ?? 0;
+
+  if (isLoading) {
+    return (
+      <SearchTable
+        header={header}
+        showSource={false}
+        body={
+          <TableBody>
+            {Array.from({ length: 8 }).map((_, i) => (
+              <TableRow key={i}>
+                {Array.from({ length: 4 }).map((_, j) => (
+                  <TableCell key={j}>
+                    <Skeleton variant="text" />
+                  </TableCell>
+                ))}
+                <TableCell align="center">
+                  <Skeleton variant="circular" width={24} height={24} />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        }
+      />
+    );
+  }
+
+  if (error) {
+    return (
+      <Box
+        sx={{
+          height: "100%",
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
         {header}
-        <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <Typography color="text.secondary">
-            音源搜索功能尚未实现，敬请期待
-          </Typography>
+        <Box
+          sx={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Chip
+            icon={<ErrorOutlineIcon />}
+            label={error.message}
+            color="error"
+            variant="outlined"
+          />
         </Box>
       </Box>
     );
   }
 
-  if (!query.trim()) {
+  if (!deferredQuery.trim() || !songs.length) {
     return (
-      <Box sx={{ height: "100%", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+      <Box
+        sx={{
+          height: "100%",
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
         {header}
-        <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <EmptyText text="输入关键词搜索本地歌曲" />
-        </Box>
-      </Box>
-    );
-  }
-
-  if (!results.length && !isStale) {
-    return (
-      <Box sx={{ height: "100%", overflow: "hidden", display: "flex", flexDirection: "column" }}>
-        {header}
-        <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <EmptyText text="无搜索结果" />
+        <Box
+          sx={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <EmptyText
+            text={
+              deferredQuery.trim() ? "无搜索结果" : "输入关键词搜索在线音源"
+            }
+          />
         </Box>
       </Box>
     );
   }
 
   return (
-    <Box sx={{ height: "100%", overflow: "hidden", display: "flex", flexDirection: "column" }}>
-      {header}
-      {tabValue === 0 && (
-        <TableContainer
-          sx={{
-            flex: 1,
-            minHeight: 0,
-            opacity: isStale ? 0.5 : 1,
-            transition: "opacity 0.15s ease",
-          }}
-        >
-          <Table size="small" stickyHeader>
-            <TableHead>
-              <TableRow>
-                <TableCell>歌曲名</TableCell>
-                <TableCell>歌手</TableCell>
-                <TableCell>专辑</TableCell>
-                <TableCell>来源</TableCell>
-                <TableCell align="center">操作</TableCell>
-                <TableCell sx={{ whiteSpace: "nowrap" }}>时长</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {results.map((item) => (
-                <TableRow
-                  key={`${item.playlist_id}:${item.src}`}
-                  hover
-                  onDoubleClick={() => handlePlay(item)}
-                >
-                  <TableCell>{item.title}</TableCell>
-                  <TableCell>{item.artist}</TableCell>
-                  <TableCell>{item.album}</TableCell>
-                  <TableCell>
-                    <Chip
-                      label={item.playlist_label}
-                      size="small"
-                      variant="outlined"
-                    />
-                  </TableCell>
-                  <TableCell align="center">
-                    <IconButton size="small" onClick={() => handlePlay(item)}>
+    <SearchTable
+      header={header}
+      showSource={false}
+      body={
+        <TableBody>
+          {songs.map((song) => (
+            <TableRow key={`${song.source}:${song.id}`} hover>
+              <TableCell>{song.name}</TableCell>
+              <TableCell>{song.artist}</TableCell>
+              <TableCell>{song.album}</TableCell>
+              <TableCell align="center">
+                <Tooltip title="暂不支持在线播放">
+                  <span>
+                    <IconButton size="small" disabled>
                       <HeadphonesIcon fontSize="small" />
                     </IconButton>
-                  </TableCell>
-                  <TableCell>{formatTime(item.duration)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
-      {tabValue === 1 && (
-        <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <Typography color="text.secondary">
-            音源搜索功能尚未实现，敬请期待
-          </Typography>
-        </Box>
-      )}
-    </Box>
+                  </span>
+                </Tooltip>
+              </TableCell>
+              <TableCell>{formatTime(song.duration)}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      }
+      pagination={
+        source &&
+        total > getPageLimit(source) && (
+          <Box sx={{ display: "flex", justifyContent: "center", py: 1 }}>
+            <Pagination
+              count={Math.ceil(total / getPageLimit(source))}
+              page={onlinePage[source]}
+              onChange={(_: React.ChangeEvent<unknown>, page: number) => {
+                const s = onlineSources[tabValue - 1];
+                if (s) setOnlinePage((prev) => ({ ...prev, [s]: page }));
+              }}
+              siblingCount={0}
+              boundaryCount={1}
+            />
+          </Box>
+        )
+      }
+    />
   );
 };
 
