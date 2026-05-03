@@ -27,6 +27,7 @@
         { "url": "http://search.kuwo.cn/*" },
         { "url": "https://*.kugou.com/*" },
         { "url": "https://*.y.qq.com/*" },
+        { "url": "http://music.163.com/*" },
         { "url": "http://*.music.163.com/*" },
         { "url": "https://*.migu.cn/*" }
       ]
