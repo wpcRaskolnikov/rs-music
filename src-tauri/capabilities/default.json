@@ -20,6 +20,16 @@
     "fs:allow-app-write",
     "store:default",
     "sql:default",
-    "sql:allow-execute"
+    "sql:allow-execute",
+    {
+      "identifier": "http:default",
+      "allow": [
+        { "url": "http://search.kuwo.cn/*" },
+        { "url": "https://*.kugou.com/*" },
+        { "url": "https://*.y.qq.com/*" },
+        { "url": "http://*.music.163.com/*" },
+        { "url": "https://*.migu.cn/*" }
+      ]
+    }
   ]
 }
