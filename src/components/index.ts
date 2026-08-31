@@ -1,7 +1,6 @@
 export { default as EmptyText } from "./EmptyText";
 export { default as Search } from "../layout/Search";
 
-export { default as AlbumCover } from "./player/AlbumCover";
 export { default as SongInfo } from "./player/SongInfo";
 export { default as VolumeControl } from "./player/VolumeControl";
 export { default as PlayControls } from "./player/PlayControls";

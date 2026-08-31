@@ -11,20 +11,17 @@ import {
   currentPlaylistAtom,
   volumeAtom,
   isMutedAtom,
-  playModeAtom,
   shortcutsAtom,
-  settingsStore,
   currentTrackInfoAtom,
   getDb,
 } from "../store";
-import type { MusicMetadata, Shortcuts } from "../store";
+import type { MusicMetadata } from "../store";
 import { useLatest } from "../utils";
 import { Box, IconButton, Tooltip } from "@mui/material";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 import LyricsIcon from "@mui/icons-material/Lyrics";
 
 import {
-  AlbumCover,
   SongInfo,
   VolumeControl,
   PlayControls,
@@ -42,8 +39,7 @@ const Player: React.FC = () => {
   const setCurrentPlaylist = useSetAtom(currentPlaylistAtom);
   const [volume, setVolume] = useAtom(volumeAtom);
   const [isMuted, setIsMuted] = useAtom(isMutedAtom);
-  const [, setPlayMode] = useAtom(playModeAtom);
-  const [shortcuts, setShortcuts] = useAtom(shortcutsAtom);
+  const [shortcuts] = useAtom(shortcutsAtom);
   const setCurrentTime = useSetAtom(currentTimeAtom);
   const { src } = useAtomValue(currentTrackInfoAtom);
 
@@ -104,21 +100,6 @@ const Player: React.FC = () => {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // 初始化设置
-  useEffect(() => {
-    (async () => {
-      const store = await settingsStore;
-      const volume = await store.get<number>("volume");
-      if (volume) setVolume(volume);
-      const isMuted = await store.get<boolean>("isMuted");
-      if (isMuted) setIsMuted(isMuted);
-      const playMode = await store.get<string>("playMode");
-      if (playMode) setPlayMode(playMode);
-      const shortcuts = await store.get<Shortcuts>("shortcuts");
-      if (shortcuts) setShortcuts(shortcuts);
-    })();
-  }, []);
-
   // 恢复上次播放
   useEffect(() => {
     (async () => {
@@ -176,10 +157,7 @@ const Player: React.FC = () => {
         borderTop="1px solid #ddd"
         bgcolor="#f0f0f0"
       >
-        {/* 唱片区域 */}
-        <Box display="flex" alignItems="center" height="90%">
-          <AlbumCover />
-        </Box>
+        {/* 歌曲信息 */}
         <SongInfo />
         {src && (
           <>

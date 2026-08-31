@@ -13,14 +13,16 @@ import {
   IconButton,
   Divider,
   Tooltip,
+  Stack,
 } from "@mui/material";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import DownloadIcon from "@mui/icons-material/Download";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
+import { open } from "@tauri-apps/plugin-dialog";
 import { useAtom } from "jotai";
 import { parseUserApiScript } from "../../utils/userApiParser";
-import { userApiListAtom, selectedApiIdAtom } from "../../store";
+import { userApiListAtom, selectedApiIdAtom, downloadDirAtom } from "../../store";
 import type { UserApiMeta } from "../../store";
 
 const UserApiPanel: React.FC = () => {
@@ -31,6 +33,18 @@ const UserApiPanel: React.FC = () => {
   const [detailOpen, setDetailOpen] = useState(false);
   const [url, setUrl] = useState("");
   const [error, setError] = useState("");
+  const [downloadDir, setDownloadDir] = useAtom(downloadDirAtom);
+
+  const handleSelectDirectory = async () => {
+    const selected = await open({
+      multiple: false,
+      directory: true,
+      title: "选择下载目录",
+    });
+    if (selected && typeof selected === "string") {
+      setDownloadDir(selected);
+    }
+  };
 
   const handleOnlineImport = async () => {
     setError("");
@@ -70,6 +84,7 @@ const UserApiPanel: React.FC = () => {
     setDetailApi(api);
     setDetailOpen(true);
   };
+
 
   return (
     <>
@@ -142,7 +157,7 @@ const UserApiPanel: React.FC = () => {
         )}
       </Box>
 
-      <Box sx={{ display: "flex", gap: 1 }}>
+      <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
         <Button
           variant="outlined"
           size="small"
@@ -160,6 +175,31 @@ const UserApiPanel: React.FC = () => {
           本地导入
         </Button>
       </Box>
+
+      <Divider sx={{ mb: 2 }} />
+
+      <Stack spacing={0}>
+        <Typography variant="body2" color="text.secondary" gutterBottom>
+          下载目录
+        </Typography>
+        <Box sx={{ display: "flex", gap: 1 }}>
+          <TextField
+            fullWidth
+            placeholder="请选择下载目录"
+            value={downloadDir}
+            slotProps={{
+              input: {
+                readOnly: true,
+              },
+            }}
+            size="small"
+            title={downloadDir}
+          />
+          <IconButton color="primary" onClick={handleSelectDirectory} size="medium" title="选择目录">
+            <FolderOpenIcon />
+          </IconButton>
+        </Box>
+      </Stack>
 
       {/* 在线导入对话框 */}
       <Dialog

@@ -19,6 +19,7 @@ export {
   shortcutsAtom,
   userApiListAtom,
   selectedApiIdAtom,
+  downloadDirAtom,
 } from "./settingsAtom";
 
 export type { Shortcuts, UserApiMeta } from "./settingsAtom";
