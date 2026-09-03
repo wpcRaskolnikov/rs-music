@@ -3,7 +3,7 @@ import type { Source } from "./types";
 import { fetch } from "@tauri-apps/plugin-http";
 import { sha1, base64Encode } from "../crypto";
 
-const source: Source = "qq";
+const source: Source = "tx";
 const sourceName = "QQ音乐";
 
 const PART_1_INDEXES = [23, 14, 6, 36, 16, 40, 7, 19];
@@ -115,12 +115,12 @@ function handleResult(rawList: any[]): OnlineSongInfo[] {
     if (!item.file?.media_mid) continue;
 
     list.push({
-      id: item.mid || item.id || "",
+      id: item.mid || "",
       name: item.title || "",
       artist: formatSingerName(item.singer),
       album: item.album?.name || "",
       duration: item.interval || 0,
-      source: "qq",
+      source: "tx",
     });
   }
 

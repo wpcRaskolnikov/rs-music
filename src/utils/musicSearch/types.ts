@@ -1,9 +1,9 @@
-export type Source = "kw" | "kg" | "qq" | "wy" | "mg";
+export type Source = "kw" | "kg" | "tx" | "wy" | "mg";
 
 export const sourceNameMap: Record<Source, string> = {
   kw: "酷我",
   kg: "酷狗",
-  qq: "QQ音乐",
+  tx: "QQ音乐",
   wy: "网易云",
   mg: "咪咕",
 };

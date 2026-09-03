@@ -1,6 +1,9 @@
 mod db;
+mod download;
 mod lrc;
 mod music;
+mod music_url;
+mod progress;
 mod tag;
 mod tray;
 
@@ -43,6 +46,9 @@ pub fn run() {
             db::add_music_files,
             db::add_music_folder,
             db::move_music,
+            music_url::get_music_url,
+            download::start_download,
+            download::cancel_download,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

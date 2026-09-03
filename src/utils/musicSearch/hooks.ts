@@ -2,14 +2,14 @@ import { useQuery } from "@tanstack/react-query";
 import type { Source, PlatformResult } from "./types";
 import { search as searchKw } from "./kw";
 import { search as searchKg } from "./kg";
-import { search as searchQq } from "./qq";
+import { search as searchTx } from "./tx";
 import { search as searchWy } from "./wy";
 import { search as searchMg } from "./mg";
 
 const searchFnMap: Record<Source, typeof searchKw> = {
   kw: searchKw,
   kg: searchKg,
-  qq: searchQq,
+  tx: searchTx,
   wy: searchWy,
   mg: searchMg,
 };

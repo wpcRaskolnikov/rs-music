@@ -83,7 +83,7 @@ function handleResult(rawData: any[]): OnlineSongInfo[] {
     if (ids.has(key)) continue;
     ids.add(key);
     list.push({
-      id: `${item.Audioid || ""}_${item.FileHash || ""}`,
+      id: item.FileHash || "",
       name: item.SongName || "",
       artist: formatSingerName(item.Singers),
       album: item.AlbumName || "",
