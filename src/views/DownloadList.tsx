@@ -13,7 +13,6 @@ import {
   Typography,
 } from "@mui/material";
 import PauseIcon from "@mui/icons-material/Pause";
-import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { EmptyText } from "../components";
 import { getDownloads, cancelDownload, onDownloadStatusUpdate } from "../utils/download";

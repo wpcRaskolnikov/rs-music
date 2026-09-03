@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { getDb } from "../store/db";
 
-export type Quality = "128k" | "320k" | "flac" | "flac24bit" | "wav";
+export type Quality = "128k" | "320k" | "flac" | "flac24bit";
 
 export interface DownloadTask {
   id: string;
@@ -30,7 +30,7 @@ export async function getMusicUrl(
   script: string,
   source: string,
   songId: string,
-  quality: Quality = "128k",
+  quality: Quality = "320k",
 ): Promise<string> {
   return invoke<string>("get_music_url", {
     script,
