@@ -27,10 +27,12 @@ globalThis.lx = {
     }
   },
 
-  request: function (url, options, callback) {
-    const headers = options && options.headers ? options.headers : {};
+  request: async function (url, options, callback) {
     try {
-      const resp = JSON.parse(lx._doHttp(url, headers));
+      const headers = options && options.headers ? JSON.stringify(options.headers) : "{}";
+      const rawRes = await lx._doHttp(url, headers);
+      const resp = JSON.parse(rawRes);
+
       callback(null, resp);
     } catch (e) {
       callback(e, null);

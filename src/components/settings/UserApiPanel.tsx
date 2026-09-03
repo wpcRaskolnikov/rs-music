@@ -20,6 +20,7 @@ import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import DownloadIcon from "@mui/icons-material/Download";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import { open } from "@tauri-apps/plugin-dialog";
+import { readTextFile } from "@tauri-apps/plugin-fs";
 import { useAtom } from "jotai";
 import { parseUserApiScript } from "../../utils/userApiParser";
 import { userApiListAtom, selectedApiIdAtom, downloadDirAtom } from "../../store";
@@ -70,7 +71,34 @@ const UserApiPanel: React.FC = () => {
   };
 
   const handleLocalImport = async () => {
-    // TODO: 本地文件导入
+    const filePath = await open({
+      multiple: false,
+      directory: false,
+      title: "选择音源脚本文件",
+      filters: [{ name: "JavaScript", extensions: ["js"] }],
+    });
+    if (!filePath || typeof filePath !== "string") return;
+    try {
+      const content = await readTextFile(filePath);
+      const meta = parseUserApiScript(content);
+      const hashArray = await crypto.subtle.digest(
+        "SHA-256",
+        new TextEncoder().encode(content),
+      );
+      const id = Array.from(new Uint8Array(hashArray))
+        .slice(0, 8)
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+      setApis((prev) => {
+        if (prev.some((a) => a.id === id)) {
+          setError("该音源已存在");
+          return prev;
+        }
+        return [...prev, { ...meta, id, scriptContent: content }];
+      });
+    } catch (e: any) {
+      setError(e.message ?? "导入失败");
+    }
   };
 
   const handleDelete = (id: string) => {

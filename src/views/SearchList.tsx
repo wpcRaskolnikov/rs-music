@@ -2,6 +2,7 @@ import React, {
   useDeferredValue,
   useEffect,
   useState,
+  useRef,
 } from "react";
 import {
   Box,
@@ -18,25 +19,37 @@ import {
   Tooltip,
   Skeleton,
   Pagination,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemText,
 } from "@mui/material";
 import HeadphonesIcon from "@mui/icons-material/Headphones";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
+import DownloadIcon from "@mui/icons-material/Download";
 import { EmptyText } from "../components";
 import { invoke } from "@tauri-apps/api/core";
 import { useAtomValue, useSetAtom } from "jotai";
-import { MusicMetadata, getDb, searchQueryAtom, isPlayingAtom } from "../store";
+import { MusicMetadata, getDb, searchQueryAtom, isPlayingAtom, downloadDirAtom, userApiListAtom, selectedApiIdAtom } from "../store";
 import { formatTime } from "../utils";
 import { sourceNameMap } from "../utils/musicSearch/types";
 import type { Source } from "../utils/musicSearch/types";
 import { useOnlineSearch } from "../utils/musicSearch/hooks";
 import { LIMIT as WY_LIMIT } from "../utils/musicSearch/wy";
+import { downloadSong, onDownloadStatusUpdate } from "../utils/download";
+import type { Quality } from "../utils/download";
 
 interface SearchResult extends MusicMetadata {
   playlist_id: string;
   playlist_label: string;
 }
 
-const onlineSources: Source[] = ["kw", "kg", "qq", "wy", "mg"];
+const onlineSources: Source[] = ["kw", "kg", "tx", "wy", "mg"];
 
 const tabs = ["本地", ...onlineSources.map((s) => sourceNameMap[s])];
 
@@ -106,10 +119,46 @@ const SearchList: React.FC = () => {
   const [onlinePage, setOnlinePage] = useState<Record<Source, number>>({
     kw: 1,
     kg: 1,
-    qq: 1,
+    tx: 1,
     wy: 1,
     mg: 1,
   });
+  const downloadDir = useAtomValue(downloadDirAtom);
+  const userApiList = useAtomValue(userApiListAtom);
+  const selectedApiId = useAtomValue(selectedApiIdAtom);
+  const [downloading, setDownloading] = useState<Set<string>>(new Set());
+  const unlistenRef = useRef<(() => void)[]>([]);
+
+  // Quality selection dialog state
+  const [qualityDialog, setQualityDialog] = useState<{
+    open: boolean;
+    song: { id: string; name: string; artist: string; album: string; source: Source } | null;
+  }>({ open: false, song: null });
+  const qualities: Quality[] = ["128k", "320k", "flac", "flac24bit"];
+
+  // Listen to download events
+  useEffect(() => {
+    const listeners = [
+      onDownloadStatusUpdate(({ id, status }) => {
+        if (status.type === "completed" || status.type === "error") {
+          setDownloading((prev) => {
+            const next = new Set(prev);
+            next.delete(id);
+            return next;
+          });
+        }
+      }),
+    ];
+
+    Promise.all(listeners).then((unlistens) => {
+      unlistenRef.current = unlistens;
+    });
+
+    return () => {
+      unlistenRef.current.forEach((unlisten) => unlisten());
+      unlistenRef.current = [];
+    };
+  }, []);
 
   useEffect(() => {
     const source = onlineSources[tabValue - 1];
@@ -156,6 +205,56 @@ const SearchList: React.FC = () => {
         playlistId: result.playlist_id,
         index: rows[0].idx,
       });
+    }
+  };
+
+  const handleDownload = (song: { id: string; name: string; artist: string; album: string; source: Source }) => {
+    setQualityDialog({ open: true, song });
+  };
+
+  const handleDownloadWithQuality = async (quality: Quality) => {
+    if (!qualityDialog.song) return;
+    const song = qualityDialog.song;
+
+    const apiId = selectedApiId;
+    if (!apiId) {
+      alert("请先在设置中导入并选择一个音源");
+      return;
+    }
+    if (!downloadDir) {
+      alert("请先在设置中选择下载目录");
+      return;
+    }
+
+    const api = userApiList.find((a) => a.id === apiId);
+    if (!api) {
+      alert("未找到选中的音源脚本");
+      return;
+    }
+
+    const id = `${song.source}:${song.id}`;
+    setDownloading((prev) => new Set(prev).add(id));
+    setQualityDialog({ open: false, song: null });
+
+    try {
+      await downloadSong(
+        api.scriptContent,
+        song.source,
+        song.id,
+        song.name,
+        song.artist,
+        song.album,
+        quality,
+        downloadDir,
+      );
+    } catch (e: any) {
+      console.error("Download failed:", e);
+      setDownloading((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      alert(`下载失败: ${e.message || e}`);
     }
   };
 
@@ -349,6 +448,7 @@ const SearchList: React.FC = () => {
   }
 
   return (
+    <>
     <SearchTable
       header={header}
       showSource={false}
@@ -360,13 +460,24 @@ const SearchList: React.FC = () => {
               <TableCell>{song.artist}</TableCell>
               <TableCell>{song.album}</TableCell>
               <TableCell align="center">
-                <Tooltip title="暂不支持在线播放">
-                  <span>
-                    <IconButton size="small" disabled>
-                      <HeadphonesIcon fontSize="small" />
+                {downloading.has(`${song.source}:${song.id}`) ? (
+                  <Tooltip title="下载中">
+                    <span>
+                      <IconButton size="small" disabled>
+                        <DownloadIcon fontSize="small" />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                ) : (
+                  <Tooltip title="下载">
+                    <IconButton
+                      size="small"
+                      onClick={() => handleDownload(song)}
+                    >
+                      <DownloadIcon fontSize="small" />
                     </IconButton>
-                  </span>
-                </Tooltip>
+                  </Tooltip>
+                )}
               </TableCell>
               <TableCell>{formatTime(song.duration)}</TableCell>
             </TableRow>
@@ -391,6 +502,38 @@ const SearchList: React.FC = () => {
         )
       }
     />
+
+    {/* Quality Selection Dialog */}
+    <Dialog
+      open={qualityDialog.open}
+      onClose={() => setQualityDialog({ open: false, song: null })}
+    >
+      <DialogTitle>选择音质</DialogTitle>
+      <DialogContent>
+        <List>
+          {qualities.map((q) => (
+            <ListItem key={q} disablePadding>
+              <ListItemButton onClick={() => handleDownloadWithQuality(q)}>
+                <ListItemText
+                  primary={
+                    q === "128k" ? "标准音质 (128k)" :
+                    q === "320k" ? "高音质 (320k)" :
+                    q === "flac" ? "无损音质 (FLAC)" :
+                    "高解析无损 (FLAC 24bit)"
+                  }
+                />
+              </ListItemButton>
+            </ListItem>
+          ))}
+        </List>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => setQualityDialog({ open: false, song: null })}>
+          取消
+        </Button>
+      </DialogActions>
+    </Dialog>
+    </>
   );
 };
 

@@ -11,14 +11,12 @@ import { NavLink } from "react-router";
 
 // MUI Icons
 import SearchIcon from "@mui/icons-material/Search";
-import BarChartIcon from "@mui/icons-material/BarChart";
 import QueueMusicIcon from "@mui/icons-material/QueueMusic";
 import DownloadIcon from "@mui/icons-material/Download";
 import SettingsIcon from "@mui/icons-material/Settings";
 
 const menuItems = [
   { label: "搜索", path: "/search", icon: <SearchIcon /> },
-  { label: "排行榜", path: "/ranking", icon: <BarChartIcon /> },
   { label: "列表", path: "/songlist", icon: <QueueMusicIcon /> },
   { label: "下载管理", path: "/download", icon: <DownloadIcon /> },
   { label: "设置", path: "/setting", icon: <SettingsIcon /> },

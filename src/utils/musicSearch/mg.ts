@@ -91,7 +91,7 @@ function filterData(rawData: any[][]): OnlineSongInfo[] | null {
       ids.add(data.copyrightId);
 
       list.push({
-        id: data.copyrightId,
+        id: data.songId,
         name: data.name || "",
         artist: formatSingerName(data.singerList),
         album: data.album || "",
