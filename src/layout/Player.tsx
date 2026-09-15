@@ -4,6 +4,11 @@ import { load } from "@tauri-apps/plugin-store";
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
+
+import { Box, IconButton, Tooltip } from "@mui/material";
+import MyLocationIcon from "@mui/icons-material/MyLocation";
+import LyricsIcon from "@mui/icons-material/Lyrics";
+
 import {
   currentTimeAtom,
   isPlayingAtom,
@@ -17,10 +22,6 @@ import {
 } from "../store";
 import type { MusicMetadata } from "../store";
 import { useLatest } from "../utils";
-import { Box, IconButton, Tooltip } from "@mui/material";
-import MyLocationIcon from "@mui/icons-material/MyLocation";
-import LyricsIcon from "@mui/icons-material/Lyrics";
-
 import {
   SongInfo,
   VolumeControl,
@@ -34,14 +35,13 @@ const Player: React.FC = () => {
   const location = useLocation();
 
   const [showLyrics, setShowLyrics] = useState(false);
+  const setCurrentTime = useSetAtom(currentTimeAtom);
+  const [volume, setVolume] = useAtom(volumeAtom);
+  const [isMuted, setIsMuted] = useAtom(isMutedAtom);
   const [isPlaying, setIsPlaying] = useAtom(isPlayingAtom);
   const setCurrentTrackIndex = useSetAtom(currentTrackIndexAtom);
   const setCurrentPlaylist = useSetAtom(currentPlaylistAtom);
-  const [volume, setVolume] = useAtom(volumeAtom);
-  const [isMuted, setIsMuted] = useAtom(isMutedAtom);
   const [shortcuts] = useAtom(shortcutsAtom);
-  const setCurrentTime = useSetAtom(currentTimeAtom);
-  const { src } = useAtomValue(currentTrackInfoAtom);
 
   // 按键绑定
   const isPlayingRef = useLatest(isPlaying);
@@ -111,10 +111,8 @@ const Player: React.FC = () => {
           "SELECT src, title, artist, album, duration FROM music WHERE playlist_id = ? ORDER BY sort_order",
           [playlistId],
         );
-        if (songs.length > 0 && index < songs.length) {
-          setCurrentPlaylist({ playlistId, songs });
-          setCurrentTrackIndex(index);
-        }
+        setCurrentPlaylist({ playlistId, songs });
+        setCurrentTrackIndex(index);
       }
     })();
   }, []);
@@ -131,11 +129,8 @@ const Player: React.FC = () => {
 
   // 切歌响应
   useEffect(() => {
-    const unlisten = listen<
-      MusicMetadata & { index: number; playlist_id: string }
-    >("current-music-changed", (event) => {
-      const { index } = event.payload;
-      setCurrentTrackIndex(index);
+    const unlisten = listen<number>("current-music-changed", (event) => {
+      setCurrentTrackIndex(event.payload);
       setCurrentTime(0);
       setIsPlaying(true);
     });
@@ -156,40 +151,32 @@ const Player: React.FC = () => {
         borderTop="1px solid #ddd"
         bgcolor="#f0f0f0"
       >
-        {/* 歌曲信息 */}
         <SongInfo />
-        {src && (
-          <>
-            <Tooltip title="定位到当前歌曲">
-              <IconButton
-                size="small"
-                onClick={() => {
-                  if (location.pathname !== "/songlist") {
-                    navigate("/songlist");
-                  } else {
-                    window.dispatchEvent(new CustomEvent("locate-playlist"));
-                  }
-                }}
-              >
-                <MyLocationIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title={showLyrics ? "关闭歌词" : "显示歌词"}>
-              <IconButton
-                size="small"
-                onClick={() => setShowLyrics((v) => !v)}
-                sx={{ color: showLyrics ? "primary.main" : "inherit" }}
-              >
-                <LyricsIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          </>
-        )}
-        {/* 进度条 */}
+        <Tooltip title="定位到当前歌曲">
+          <IconButton
+            size="small"
+            onClick={() => {
+              if (location.pathname !== "/songlist") {
+                navigate("/songlist");
+              } else {
+                window.dispatchEvent(new CustomEvent("locate-playlist"));
+              }
+            }}
+          >
+            <MyLocationIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title={showLyrics ? "关闭歌词" : "显示歌词"}>
+          <IconButton
+            size="small"
+            onClick={() => setShowLyrics((v) => !v)}
+            sx={{ color: showLyrics ? "primary.main" : "inherit" }}
+          >
+            <LyricsIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
         <ProgressBar />
-        {/* 音量控制 */}
         <VolumeControl />
-        {/* 播放控制 */}
         <PlayControls />
       </Box>
     </>

@@ -25,7 +25,7 @@ interface UseOnlineSearchOptions {
 export function useOnlineSearch({ source, keyword, page }: UseOnlineSearchOptions) {
   return useQuery<PlatformResult>({
     queryKey: [ONLINE_SEARCH_KEY, source, keyword, page],
-    queryFn: () => {
+    queryFn: async () => {
       return searchFnMap[source!](keyword.trim(), page).then((res) => {
         if (res.error && res.songs.length === 0) {
           throw new Error(res.error);

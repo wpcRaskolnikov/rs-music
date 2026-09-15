@@ -6,9 +6,11 @@ export {
   currentTrackIndexAtom,
   currentPlaylistAtom,
   currentTrackInfoAtom,
+  lyricsAtom,
+  activeLyricIndexAtom,
 } from "./playbackAtom";
 
-export type { MusicMetadata } from "./playbackAtom";
+export type { MusicMetadata, LrcLine } from "./playbackAtom";
 
 export {
   settingsStore,
@@ -23,9 +25,5 @@ export {
 } from "./settingsAtom";
 
 export type { Shortcuts, UserApiMeta } from "./settingsAtom";
-
-export { lyricsAtom, activeLyricIndexAtom } from "./lyricsAtom";
-
-export type { LrcLine } from "./lyricsAtom";
 
 export { db } from "./db";

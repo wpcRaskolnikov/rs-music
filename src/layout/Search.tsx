@@ -34,7 +34,7 @@ const Search: React.FC = () => {
         variant="outlined"
         value={query}
         onChange={handleChange}
-        sx={{ width: 200, bgcolor: "#e8f5e9", borderRadius: 1 }}
+        sx={{ width: "30%", bgcolor: "#e8f5e9", borderRadius: 1 }}
         slotProps={{
           input: {
             endAdornment: query ? (

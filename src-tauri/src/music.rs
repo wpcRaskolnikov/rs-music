@@ -140,7 +140,7 @@ fn play_at(app: &tauri::AppHandle, sink: &rodio::Sink, entry: PlaylistEntry) {
         let _ = store.set("playlist_id", entry.playlist_id.clone());
         let _ = store.set("index", entry.index);
     }
-    app.emit("current-music-changed", entry).ok();
+    app.emit("current-music-changed", entry.index).ok();
     sink.append(EmptyCallback::new(Box::new(play_next)));
 }
 

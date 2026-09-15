@@ -184,6 +184,10 @@ const SongTable: React.FC<SongTableProps> = ({
     return () => window.removeEventListener("locate-playlist", handler);
   }, [currentIndex, localList.length]);
 
+  if (!localList.length) {
+    return <EmptyText text="暂无歌曲" />;
+  }
+
   return (
     <Box
       sx={{
@@ -195,7 +199,6 @@ const SongTable: React.FC<SongTableProps> = ({
         flexDirection: "column",
       }}
     >
-      {/* 表头 */}
       <Box
         sx={{
           bgcolor: "background.paper",
@@ -242,63 +245,57 @@ const SongTable: React.FC<SongTableProps> = ({
         </Typography>
       </Box>
 
-      {/* 虚拟滚动列表 */}
-      {localList.length ? (
-        <Box ref={scrollRef} sx={{ flex: 1, overflowY: "auto" }}>
-          <DragDropProvider
-            onDragOver={(event) => {
-              setLocalList((items) => {
-                const map = new Map(items.map((item) => [item.src, item]));
-                const ids = items.map((item) => ({ id: item.src }));
-                return move(ids, event).map(({ id }) => map.get(id)!);
-              });
-            }}
-            onDragEnd={(event) => {
-              const { source } = event.operation;
-              if (event.canceled || !source) {
-                setLocalList(list);
-                return;
-              }
-              const from = list.findIndex((i) => i.src === source.id);
-              const to = localList.findIndex((i) => i.src === source.id);
-              onReorder(from, to);
-            }}
+      <Box ref={scrollRef} sx={{ flex: 1, overflowY: "auto" }}>
+        <DragDropProvider
+          onDragOver={(event) => {
+            setLocalList((items) => {
+              const map = new Map(items.map((item) => [item.src, item]));
+              const ids = items.map((item) => ({ id: item.src }));
+              return move(ids, event).map(({ id }) => map.get(id)!);
+            });
+          }}
+          onDragEnd={(event) => {
+            const { source } = event.operation;
+            if (event.canceled || !source) {
+              setLocalList(list);
+              return;
+            }
+            const from = list.findIndex((i) => i.src === source.id);
+            const to = localList.findIndex((i) => i.src === source.id);
+            onReorder(from, to);
+          }}
+        >
+          <Box
+            sx={{ height: virtualizer.getTotalSize(), position: "relative" }}
           >
-            <Box
-              sx={{ height: virtualizer.getTotalSize(), position: "relative" }}
+            <List
+              dense
+              disablePadding
+              sx={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                transform: `translateY(${virtualItems[0]?.start ?? 0}px)`,
+              }}
             >
-              <List
-                dense
-                disablePadding
-                sx={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  transform: `translateY(${virtualItems[0]?.start ?? 0}px)`,
-                }}
-              >
-                {virtualItems.map((virtualRow) => (
-                  <SortableRow
-                    ref={virtualizer.measureElement}
-                    key={virtualRow.key}
-                    item={localList[virtualRow.index]}
-                    index={virtualRow.index}
-                    isActive={
-                      localList[virtualRow.index]?.src ===
-                      list[currentIndex]?.src
-                    }
-                    onPlay={() => onPlay(virtualRow.index)}
-                    onRemove={() => onRemove(virtualRow.index)}
-                  />
-                ))}
-              </List>
-            </Box>
-          </DragDropProvider>
-        </Box>
-      ) : (
-        <EmptyText text="暂无歌曲" />
-      )}
+              {virtualItems.map((virtualRow) => (
+                <SortableRow
+                  ref={virtualizer.measureElement}
+                  key={virtualRow.key}
+                  item={localList[virtualRow.index]}
+                  index={virtualRow.index}
+                  isActive={
+                    localList[virtualRow.index]?.src === list[currentIndex]?.src
+                  }
+                  onPlay={() => onPlay(virtualRow.index)}
+                  onRemove={() => onRemove(virtualRow.index)}
+                />
+              ))}
+            </List>
+          </Box>
+        </DragDropProvider>
+      </Box>
     </Box>
   );
 };

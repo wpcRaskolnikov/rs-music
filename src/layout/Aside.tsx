@@ -1,4 +1,6 @@
 import React from "react";
+import { NavLink } from "react-router";
+
 import {
   Box,
   List,
@@ -7,9 +9,6 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { NavLink } from "react-router";
-
-// MUI Icons
 import SearchIcon from "@mui/icons-material/Search";
 import QueueMusicIcon from "@mui/icons-material/QueueMusic";
 import DownloadIcon from "@mui/icons-material/Download";
@@ -35,7 +34,6 @@ const Aside: React.FC = () => {
       paddingTop={2}
       height="100vh"
     >
-      {/* 左上角 RS Logo */}
       <Box mb={2}>
         <Typography
           variant="h6"
@@ -47,7 +45,6 @@ const Aside: React.FC = () => {
         </Typography>
       </Box>
 
-      {/* 菜单图标 */}
       <List>
         {menuItems.map((item) => (
           <Tooltip key={item.label} title={item.label} placement="right">
