@@ -15,8 +15,8 @@
         "title": "rs-music",
         "decorations": false,
         "minWidth": 800,
-        "minHeight": 300,
-        "width": 900,
+        "minHeight": 600,
+        "width": 800,
         "height": 600
       }
     ],

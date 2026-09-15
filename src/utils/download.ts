@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import { getDb } from "../store/db";
+import { db } from "../store/db";
 
 export type Quality = "128k" | "320k" | "flac" | "flac24bit";
 
@@ -53,7 +53,6 @@ export async function createDownloadTask(params: {
   url: string;
   status?: string;
 }): Promise<void> {
-  const db = await getDb();
   await db.execute(
     "INSERT OR REPLACE INTO downloads (id, platform, title, artist, album, quality, url, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
     [params.id, params.platform, params.title, params.artist, params.album, params.quality, params.url, params.status ?? "pending"],
@@ -85,7 +84,7 @@ export async function downloadSong(
   title: string,
   artist: string,
   album: string,
-  quality: Quality = "128k",
+  quality: Quality = "320k",
   saveDir: string,
 ): Promise<string> {
   const url = await getMusicUrl(script, source, songId, quality);
@@ -116,17 +115,6 @@ export async function downloadSong(
  */
 export async function cancelDownload(id: string): Promise<void> {
   return invoke("cancel_download", { id });
-}
-
-/**
- * 获取所有下载任务（前端直接查SQL）
- */
-export async function getDownloads(): Promise<DownloadTask[]> {
-  const db = await getDb();
-  const rows = await db.select<DownloadTask[]>(
-    "SELECT id, platform, title, artist, album, quality, url, status FROM downloads ORDER BY created_at DESC",
-  );
-  return rows;
 }
 
 /**

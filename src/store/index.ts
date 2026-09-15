@@ -28,4 +28,4 @@ export { lyricsAtom, activeLyricIndexAtom } from "./lyricsAtom";
 
 export type { LrcLine } from "./lyricsAtom";
 
-export { getDb } from "./db";
+export { db } from "./db";

@@ -21,7 +21,7 @@ import EmptyText from "../EmptyText";
 import { MusicMetadata } from "../../store";
 import { formatTime } from "../../utils";
 
-const GRID = "32px 1fr 160px 160px 88px 60px";
+const GRID = "5% 35% 15% 15% 10% 10%";
 
 interface SortableRowProps {
   ref?: (el: Element | null) => void;

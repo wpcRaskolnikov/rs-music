@@ -18,7 +18,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useAtom } from "jotai";
 import { v4 as uuidv4 } from "uuid";
 import {
-  getDb,
+  db,
   currentPlaylistAtom,
   selectedPlaylistIdAtom,
 } from "../../store";
@@ -48,7 +48,6 @@ const PlaylistPanel: React.FC = () => {
   useEffect(() => {
     if (menus.length > 0) return;
     (async () => {
-      const db = await getDb();
       const rows = await db.select<PlaylistMenu[]>(
         "SELECT label, playlist_id AS playlistId FROM playlist",
       );
@@ -104,7 +103,6 @@ const PlaylistPanel: React.FC = () => {
 
   const handleCreate = async (label: string) => {
     const newPlaylistId = "playlist_" + uuidv4();
-    const db = await getDb();
     await db.execute(
       "INSERT INTO playlist (label, playlist_id) VALUES (?, ?)",
       [label, newPlaylistId],
@@ -113,7 +111,6 @@ const PlaylistPanel: React.FC = () => {
   };
 
   const handleRename = async (label: string, menu: PlaylistMenu) => {
-    const db = await getDb();
     await db.execute("UPDATE playlist SET label = ? WHERE playlist_id = ?", [
       label,
       menu.playlistId,
@@ -124,7 +121,6 @@ const PlaylistPanel: React.FC = () => {
   };
 
   const handleRemove = async (menu: PlaylistMenu) => {
-    const db = await getDb();
     await db.execute("DELETE FROM playlist WHERE playlist_id = ?", [
       menu.playlistId,
     ]);
@@ -146,7 +142,7 @@ const PlaylistPanel: React.FC = () => {
       <List
         dense
         sx={{
-          width: "150px",
+          width: "20%",
           bgcolor: "background.paper",
           position: "relative",
           overflow: "auto",

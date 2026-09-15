@@ -13,7 +13,7 @@ import {
   isMutedAtom,
   shortcutsAtom,
   currentTrackInfoAtom,
-  getDb,
+  db,
 } from "../store";
 import type { MusicMetadata } from "../store";
 import { useLatest } from "../utils";
@@ -107,7 +107,6 @@ const Player: React.FC = () => {
       const playlistId = await store.get<string>("playlist_id");
       const index = await store.get<number>("index");
       if (playlistId != null && index != null) {
-        const db = await getDb();
         const songs = await db.select<MusicMetadata[]>(
           "SELECT src, title, artist, album, duration FROM music WHERE playlist_id = ? ORDER BY sort_order",
           [playlistId],

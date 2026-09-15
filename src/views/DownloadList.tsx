@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Table,
@@ -12,12 +12,12 @@ import {
   CircularProgress,
   Typography,
 } from "@mui/material";
-import PauseIcon from "@mui/icons-material/Pause";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { EmptyText } from "../components";
-import { getDownloads, cancelDownload, onDownloadStatusUpdate } from "../utils/download";
+import { onDownloadStatusUpdate } from "../utils/download";
 import type { DownloadTask } from "../utils/download";
 import { Tooltip } from "@mui/material";
+import { db } from "../store/db";
 
 const statusMap: Record<string, { label: string; color: "default" | "primary" | "success" | "error" | "warning" }> = {
   downloading: { label: "下载中", color: "primary" },
@@ -32,12 +32,13 @@ const DownloadList: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [progressMap, setProgressMap] = useState<Record<string, number>>({});
 
-  // Load initial list
   useEffect(() => {
-    getDownloads().then((list) => {
+    db.select<DownloadTask[]>(
+      "SELECT id, platform, title, artist, album, quality, url, status FROM downloads ORDER BY created_at DESC",
+    ).then((list) => {
       setTasks(list);
       setLoading(false);
-    }).catch(() => setLoading(false));
+    })
   }, []);
 
   // Listen to events
@@ -69,58 +70,48 @@ const DownloadList: React.FC = () => {
     };
   }, []);
 
-  const handleCancel = useCallback(async (id: string) => {
-    await cancelDownload(id);
-    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status: "cancelled" } : t)));
-  }, []);
-
-  const handleDelete = useCallback((id: string) => {
+  const handleDelete = async (id: string) => {
     setTasks((prev) => prev.filter((t) => t.id !== id));
-    setProgressMap((prev) => {
-      const next = { ...prev };
-      delete next[id];
-      return next;
-    });
-  }, []);
+    setProgressMap(({ [id]: _, ...rest }) => rest);
+    await db.execute("DELETE FROM downloads WHERE id = ?", [id]);
+  };
 
   if (loading) {
     return (
-      <Box sx={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <CircularProgress />
-      </Box>
     );
   }
 
   if (!tasks.length) {
     return (
-      <Box sx={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <EmptyText text="暂无下载任务" />
-      </Box>
     );
   }
 
   return (
     <Box sx={{ height: "100%", overflow: "hidden", p: 2 }}>
-      <TableContainer sx={{ height: "100%" }}>
+      <TableContainer sx={{ height: "100%"}}>
         <Table size="small" stickyHeader>
           <TableHead>
             <TableRow>
-              <TableCell>歌曲名</TableCell>
-              <TableCell>歌手</TableCell>
-              <TableCell>进度</TableCell>
-              <TableCell>状态</TableCell>
-              <TableCell>品质</TableCell>
-              <TableCell>操作</TableCell>
+              <TableCell sx={{ width: "auto" }}>歌曲名</TableCell>
+              <TableCell sx={{ width: "15%" }}>歌手</TableCell>
+              <TableCell sx={{ width: "15%" }}>专辑</TableCell>
+              <TableCell sx={{ width: "10%" }}>进度</TableCell>
+              <TableCell sx={{ width: "15%" }}>状态</TableCell>
+              <TableCell sx={{ width: "10%" }}>品质</TableCell>
+              <TableCell sx={{ width: "10%" }}>操作</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {tasks.map((task) => {
               const statusInfo = statusMap[task.status] || { label: task.status, color: "default" };
-              const progress = progressMap[task.id] ?? 0;
+              const progress = progressMap[task.id] ?? 100;
               return (
                 <TableRow key={task.id} hover>
                   <TableCell>{task.title}</TableCell>
                   <TableCell>{task.artist}</TableCell>
+                  <TableCell>{task.album}</TableCell>
                   <TableCell>
                     <Typography variant="caption">{progress.toFixed(0)}%</Typography>
                   </TableCell>
@@ -129,13 +120,6 @@ const DownloadList: React.FC = () => {
                   </TableCell>
                   <TableCell>{task.quality}</TableCell>
                   <TableCell>
-                    {task.status === "downloading" && (
-                      <Tooltip title="暂停">
-                        <IconButton size="small" onClick={() => handleCancel(task.id)}>
-                          <PauseIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    )}
                     <Tooltip title="删除">
                       <IconButton size="small" onClick={() => handleDelete(task.id)}>
                         <DeleteIcon fontSize="small" />

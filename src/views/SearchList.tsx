@@ -35,7 +35,7 @@ import DownloadIcon from "@mui/icons-material/Download";
 import { EmptyText } from "../components";
 import { invoke } from "@tauri-apps/api/core";
 import { useAtomValue, useSetAtom } from "jotai";
-import { MusicMetadata, getDb, searchQueryAtom, isPlayingAtom, downloadDirAtom, userApiListAtom, selectedApiIdAtom } from "../store";
+import { MusicMetadata, db, searchQueryAtom, isPlayingAtom, downloadDirAtom, userApiListAtom, selectedApiIdAtom } from "../store";
 import { formatTime } from "../utils";
 import { sourceNameMap } from "../utils/musicSearch/types";
 import type { Source } from "../utils/musicSearch/types";
@@ -171,7 +171,6 @@ const SearchList: React.FC = () => {
     }
     const keyword = `%${deferredQuery.trim()}%`;
     (async () => {
-      const db = await getDb();
       const rows = await db.select<SearchResult[]>(
         `SELECT m.src, m.title, m.artist, m.album, m.duration, m.playlist_id,
                 COALESCE(p.label, m.playlist_id) AS playlist_label
@@ -194,7 +193,6 @@ const SearchList: React.FC = () => {
   });
 
   const handlePlay = async (result: SearchResult) => {
-    const db = await getDb();
     const rows = await db.select<{ idx: number }[]>(
       "SELECT idx FROM (SELECT src, ROW_NUMBER() OVER (ORDER BY sort_order) - 1 AS idx FROM music WHERE playlist_id = ?) WHERE src = ?",
       [result.playlist_id, result.src],

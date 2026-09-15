@@ -7,7 +7,7 @@ import { load } from "@tauri-apps/plugin-store";
 import { useAtom, useSetAtom } from "jotai";
 import {
   MusicMetadata,
-  getDb,
+  db,
   isPlayingAtom,
   currentTrackIndexAtom,
   currentPlaylistAtom,
@@ -33,7 +33,6 @@ const SongList: React.FC = () => {
   const loadSongs = async (id: string, force = false) => {
     if (!id) return;
     if (id === currentPlaylist.playlistId && !force) return;
-    const db = await getDb();
     const rows = await db.select<MusicMetadata[]>(
       "SELECT * FROM music WHERE playlist_id = ? ORDER BY sort_order",
       [id],
@@ -76,7 +75,6 @@ const SongList: React.FC = () => {
   };
 
   const handleRemoveSong = async (index: number) => {
-    const db = await getDb();
     await db.execute("DELETE FROM music WHERE playlist_id = ? AND src = ?", [
       selectedPlaylistId,
       songList[index].src,
