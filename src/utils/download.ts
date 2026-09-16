@@ -57,7 +57,16 @@ export async function createDownloadTask(params: {
 }): Promise<void> {
   await db.execute(
     "INSERT OR REPLACE INTO downloads (id, platform, title, artist, album, quality, url, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-    [params.id, params.platform, params.title, params.artist, params.album, params.quality, params.url, params.status ?? "pending"],
+    [
+      params.id,
+      params.platform,
+      params.title,
+      params.artist,
+      params.album,
+      params.quality,
+      params.url,
+      params.status ?? "pending",
+    ],
   );
 }
 

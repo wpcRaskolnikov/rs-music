@@ -1,3 +1,3 @@
 import Database from "@tauri-apps/plugin-sql";
 
-export const db =await Database.load("sqlite:db.sqlite");
+export const db = await Database.load("sqlite:db.sqlite");

@@ -19,7 +19,13 @@ import type { DownloadTask } from "../utils/download";
 import { Tooltip } from "@mui/material";
 import { db } from "../store/db";
 
-const statusMap: Record<string, { label: string; color: "default" | "primary" | "success" | "error" | "warning" }> = {
+const statusMap: Record<
+  string,
+  {
+    label: string;
+    color: "default" | "primary" | "success" | "error" | "warning";
+  }
+> = {
   downloading: { label: "下载中", color: "primary" },
   completed: { label: "已完成", color: "success" },
   error: { label: "失败", color: "error" },
@@ -38,12 +44,15 @@ const DownloadList: React.FC = () => {
     ).then((list) => {
       setTasks(list);
       setLoading(false);
-    })
+    });
   }, []);
 
   // Listen to events
   useEffect(() => {
-    const updateTask = (id: string, updater: (t: DownloadTask) => DownloadTask) => {
+    const updateTask = (
+      id: string,
+      updater: (t: DownloadTask) => DownloadTask,
+    ) => {
       setTasks((prev) => prev.map((t) => (t.id === id ? updater(t) : t)));
     };
 
@@ -77,20 +86,16 @@ const DownloadList: React.FC = () => {
   };
 
   if (loading) {
-    return (
-        <CircularProgress />
-    );
+    return <CircularProgress />;
   }
 
   if (!tasks.length) {
-    return (
-        <EmptyText text="暂无下载任务" />
-    );
+    return <EmptyText text="暂无下载任务" />;
   }
 
   return (
     <Box sx={{ height: "100%", overflow: "hidden", p: 2 }}>
-      <TableContainer sx={{ height: "100%"}}>
+      <TableContainer sx={{ height: "100%" }}>
         <Table size="small" stickyHeader>
           <TableHead>
             <TableRow>
@@ -105,7 +110,10 @@ const DownloadList: React.FC = () => {
           </TableHead>
           <TableBody>
             {tasks.map((task) => {
-              const statusInfo = statusMap[task.status] || { label: task.status, color: "default" };
+              const statusInfo = statusMap[task.status] || {
+                label: task.status,
+                color: "default",
+              };
               const progress = progressMap[task.id] ?? 100;
               return (
                 <TableRow key={task.id} hover>
@@ -113,15 +121,25 @@ const DownloadList: React.FC = () => {
                   <TableCell>{task.artist}</TableCell>
                   <TableCell>{task.album}</TableCell>
                   <TableCell>
-                    <Typography variant="caption">{progress.toFixed(0)}%</Typography>
+                    <Typography variant="caption">
+                      {progress.toFixed(0)}%
+                    </Typography>
                   </TableCell>
                   <TableCell>
-                    <Chip label={statusInfo.label} size="small" color={statusInfo.color} variant="outlined" />
+                    <Chip
+                      label={statusInfo.label}
+                      size="small"
+                      color={statusInfo.color}
+                      variant="outlined"
+                    />
                   </TableCell>
                   <TableCell>{task.quality}</TableCell>
                   <TableCell>
                     <Tooltip title="删除">
-                      <IconButton size="small" onClick={() => handleDelete(task.id)}>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleDelete(task.id)}
+                      >
                         <DeleteIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>

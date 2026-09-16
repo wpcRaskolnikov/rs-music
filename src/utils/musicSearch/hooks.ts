@@ -22,7 +22,11 @@ interface UseOnlineSearchOptions {
   page: number;
 }
 
-export function useOnlineSearch({ source, keyword, page }: UseOnlineSearchOptions) {
+export function useOnlineSearch({
+  source,
+  keyword,
+  page,
+}: UseOnlineSearchOptions) {
   return useQuery<PlatformResult>({
     queryKey: [ONLINE_SEARCH_KEY, source, keyword, page],
     queryFn: async () => {

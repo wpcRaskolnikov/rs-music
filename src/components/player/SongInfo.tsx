@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { Box, Typography, Tooltip, CardMedia, Dialog, IconButton } from "@mui/material";
+import {
+  Box,
+  Typography,
+  Tooltip,
+  CardMedia,
+  Dialog,
+  IconButton,
+} from "@mui/material";
 import { Close as CloseIcon } from "@mui/icons-material";
 import { invoke } from "@tauri-apps/api/core";
 import { useAtomValue } from "jotai";

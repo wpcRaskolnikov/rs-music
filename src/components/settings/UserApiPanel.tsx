@@ -23,7 +23,11 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { useAtom } from "jotai";
 import { parseUserApiScript } from "../../utils/userApiParser";
-import { userApiListAtom, selectedApiIdAtom, downloadDirAtom } from "../../store";
+import {
+  userApiListAtom,
+  selectedApiIdAtom,
+  downloadDirAtom,
+} from "../../store";
 import type { UserApiMeta } from "../../store";
 
 const UserApiPanel: React.FC = () => {
@@ -112,7 +116,6 @@ const UserApiPanel: React.FC = () => {
     setDetailApi(api);
     setDetailOpen(true);
   };
-
 
   return (
     <>
@@ -223,7 +226,12 @@ const UserApiPanel: React.FC = () => {
             size="small"
             title={downloadDir}
           />
-          <IconButton color="primary" onClick={handleSelectDirectory} size="medium" title="选择目录">
+          <IconButton
+            color="primary"
+            onClick={handleSelectDirectory}
+            size="medium"
+            title="选择目录"
+          >
             <FolderOpenIcon />
           </IconButton>
         </Box>

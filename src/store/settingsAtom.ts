@@ -66,6 +66,7 @@ export const userApiListAtom = atomWithSettings<UserApiMeta[]>("userApis", []);
 export const selectedApiIdAtom = atomWithSettings<string>("selectedApiId", "");
 
 const defaultDir = await downloadDir();
-export const downloadDirAtom = atomWithSettings<string>("downloadDir", defaultDir);
-
-
+export const downloadDirAtom = atomWithSettings<string>(
+  "downloadDir",
+  defaultDir,
+);

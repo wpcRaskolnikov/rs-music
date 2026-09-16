@@ -17,11 +17,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 import { useAtom } from "jotai";
 import { v4 as uuidv4 } from "uuid";
-import {
-  db,
-  currentPlaylistAtom,
-  selectedPlaylistIdAtom,
-} from "../../store";
+import { db, currentPlaylistAtom, selectedPlaylistIdAtom } from "../../store";
 import NewDialog from "./NewDialog";
 import RenameDialog from "./RenameDialog";
 import { useLatest } from "../../utils";

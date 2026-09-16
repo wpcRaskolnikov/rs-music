@@ -36,6 +36,15 @@ import { LIMIT as WY_LIMIT } from "../../utils/musicSearch/wy";
 import { downloadSong } from "../../utils/download";
 import type { Quality } from "../../utils/download";
 
+const qualities: Quality[] = ["128k", "320k", "flac", "flac24bit"];
+const qualityLabels: Record<Quality, string> = {
+  "128k": "标准音质 (128k)",
+  "320k": "高音质 (320k)",
+  flac: "无损音质 (FLAC)",
+  flac24bit: "高解析无损 (FLAC 24bit)",
+};
+const getPageLimit = (s: Source | null): number => (s === "wy" ? WY_LIMIT : 50);
+
 export interface OnlineTableProps {
   source: Source | null;
 }
@@ -49,17 +58,6 @@ export default function OnlineTable({ source }: OnlineTableProps) {
   const [pendingSong, setPendingSong] = useState<OnlineSongInfo | null>(null);
   const [open, setOpen] = useState(false);
   const [page, setPage] = useState(1);
-
-  const qualities: Quality[] = ["128k", "320k", "flac", "flac24bit"];
-  const qualityLabels: Record<Quality, string> = {
-    "128k": "标准音质 (128k)",
-    "320k": "高音质 (320k)",
-    flac: "无损音质 (FLAC)",
-    flac24bit: "高解析无损 (FLAC 24bit)",
-  };
-
-  const getPageLimit = (s: Source | null): number =>
-    s === "wy" ? WY_LIMIT : 50;
 
   useEffect(() => {
     setPage(1);
@@ -118,6 +116,10 @@ export default function OnlineTable({ source }: OnlineTableProps) {
       alert(`下载失败: ${e.message || e}`);
     }
   };
+
+  if (!query.trim()) {
+    return <EmptyText text="输入关键词搜索在线音源" />;
+  }
 
   if (songs.length <= 0) {
     return <EmptyText text="无搜索结果" />;
