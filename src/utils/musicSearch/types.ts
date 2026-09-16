@@ -1,3 +1,5 @@
+import type { MusicMetadata } from "../../store";
+
 export type Source = "kw" | "kg" | "tx" | "wy" | "mg";
 
 export const sourceNameMap: Record<Source, string> = {
@@ -8,13 +10,8 @@ export const sourceNameMap: Record<Source, string> = {
   mg: "咪咕",
 };
 
-export interface OnlineSongInfo {
+export interface OnlineSongInfo extends MusicMetadata {
   id: string;
-  name: string;
-  artist: string;
-  album: string;
-  duration: number;
-  source: Source;
 }
 
 export interface PlatformResult {

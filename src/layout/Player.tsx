@@ -3,7 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { load } from "@tauri-apps/plugin-store";
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router";
-import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { useAtom, useSetAtom } from "jotai";
 
 import { Box, IconButton, Tooltip } from "@mui/material";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
@@ -17,7 +17,6 @@ import {
   volumeAtom,
   isMutedAtom,
   shortcutsAtom,
-  currentTrackInfoAtom,
   db,
 } from "../store";
 import type { MusicMetadata } from "../store";

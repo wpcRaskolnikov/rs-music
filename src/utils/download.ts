@@ -2,6 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { db } from "../store/db";
 
+import type { OnlineSongInfo } from "./musicSearch/types";
+
 export type Quality = "128k" | "320k" | "flac" | "flac24bit";
 
 export interface DownloadTask {
@@ -79,26 +81,22 @@ export async function startDownload(params: {
  */
 export async function downloadSong(
   script: string,
-  source: string,
-  songId: string,
-  title: string,
-  artist: string,
-  album: string,
+  song: OnlineSongInfo,
   quality: Quality = "320k",
   saveDir: string,
 ): Promise<string> {
-  const url = await getMusicUrl(script, source, songId, quality);
-  const id = `${songId}_${quality}`;
+  const url = await getMusicUrl(script, song.src, song.id, quality);
+  const id = `${song.id}_${quality}`;
   const ext = extMap[quality] ?? "mp3";
-  const fileName = `${title} - ${artist}.${ext}`;
+  const fileName = `${song.title} - ${song.artist}.${ext}`;
   const savePath = `${saveDir}/${fileName}`;
 
   await createDownloadTask({
     id,
-    title,
-    artist,
-    album,
-    platform: source,
+    title: song.title,
+    artist: song.artist,
+    album: song.album,
+    platform: song.src,
     quality,
     url,
   });

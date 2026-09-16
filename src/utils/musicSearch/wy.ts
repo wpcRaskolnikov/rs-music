@@ -86,12 +86,12 @@ function handleResult(rawList: any[]): OnlineSongInfo[] {
 
       return {
         id: String(song.id || ""),
-        name: song.name || "",
+        src: "wy",
+        title: song.name || "",
         artist: getSinger(song.ar || []),
         album: song.al?.name || "",
         duration: Math.round((song.dt || 0) / 1000),
-        source: "wy" as Source,
       };
     })
-    .filter((s): s is OnlineSongInfo => s !== null);
+    .filter((s): s is NonNullable<typeof s> => s !== null);
 }

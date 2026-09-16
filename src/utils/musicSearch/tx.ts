@@ -116,11 +116,11 @@ function handleResult(rawList: any[]): OnlineSongInfo[] {
 
     list.push({
       id: item.mid || "",
-      name: item.title || "",
+      src: "tx",
+      title: item.title || "",
       artist: formatSingerName(item.singer),
       album: item.album?.name || "",
       duration: item.interval || 0,
-      source: "tx",
     });
   }
 

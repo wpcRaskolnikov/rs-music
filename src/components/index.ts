@@ -15,3 +15,6 @@ export { default as RenameDialog } from "./songlist/RenameDialog";
 
 export { default as ShortcutSection } from "./settings/ShortcutSection";
 export { default as UserApiPanel } from "./settings/UserApiPanel";
+
+export { default as LocalTable } from "./searchlist/LocalTable";
+export { default as OnlineTable } from "./searchlist/OnlineTable";

@@ -84,11 +84,11 @@ function handleResult(rawData: any[]): OnlineSongInfo[] {
     ids.add(key);
     list.push({
       id: item.FileHash || "",
-      name: item.SongName || "",
+      src: "kg",
+      title: item.SongName || "",
       artist: formatSingerName(item.Singers),
       album: item.AlbumName || "",
       duration: item.Duration || 0,
-      source: "kg",
     });
   }
   return list;

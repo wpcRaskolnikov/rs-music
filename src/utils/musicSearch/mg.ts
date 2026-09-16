@@ -92,11 +92,11 @@ function filterData(rawData: any[][]): OnlineSongInfo[] | null {
 
       list.push({
         id: data.songId,
-        name: data.name || "",
+        src: "mg",
+        title: data.name || "",
         artist: formatSingerName(data.singerList),
         album: data.album || "",
         duration: data.duration || 0,
-        source: "mg",
       });
     }
   }

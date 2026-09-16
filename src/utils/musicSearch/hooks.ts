@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import type { Source, PlatformResult } from "./types";
 import { search as searchKw } from "./kw";
 import { search as searchKg } from "./kg";
@@ -36,5 +36,6 @@ export function useOnlineSearch({ source, keyword, page }: UseOnlineSearchOption
     enabled: !!source && !!keyword.trim(),
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 }

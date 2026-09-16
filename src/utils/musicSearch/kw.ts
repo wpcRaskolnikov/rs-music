@@ -60,11 +60,11 @@ function handleResult(rawData: any[]): OnlineSongInfo[] {
     const interval = parseInt(info.DURATION);
     result.push({
       id: songId,
-      name: info.SONGNAME || "",
+      src: "kw",
+      title: info.SONGNAME || "",
       artist: info.ARTIST?.replace(/\&/g, "、") || "",
       album: info.ALBUM || "",
       duration: isNaN(interval) ? 0 : interval,
-      source: "kw",
     });
   }
 
