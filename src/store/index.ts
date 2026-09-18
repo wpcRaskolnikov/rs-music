@@ -8,6 +8,7 @@ export {
   currentTrackInfoAtom,
   lyricsAtom,
   activeLyricIndexAtom,
+  onlineTrackAtom
 } from "./playbackAtom";
 
 export type { MusicMetadata, LrcLine } from "./playbackAtom";

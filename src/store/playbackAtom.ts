@@ -11,7 +11,23 @@ export interface MusicMetadata {
 export const searchQueryAtom = atom("");
 export const selectedPlaylistIdAtom = atom("");
 
+export const currentTimeAtom = atom(0);
+export const isPlayingAtom = atom(false);
+
+export const onlineTrackAtom = atom<MusicMetadata | null>(null);
+const primitiveTrackIndexAtom = atom(-1);
+export const currentTrackIndexAtom = atom(
+  (get) => get(primitiveTrackIndexAtom),
+  (_get, set, nextIndex: number) => {
+    set(primitiveTrackIndexAtom, nextIndex);
+    set(onlineTrackAtom, null);
+  },
+);
 export const currentTrackInfoAtom = atom<MusicMetadata>((get) => {
+  const onlineTrack = get(onlineTrackAtom);
+  if (onlineTrack) {
+    return onlineTrack;
+  }
   const index = get(currentTrackIndexAtom);
   const { songs } = get(currentPlaylistAtom);
   if (index < 0 || index >= songs.length) {
@@ -25,9 +41,7 @@ export const currentTrackInfoAtom = atom<MusicMetadata>((get) => {
   }
   return songs[index];
 });
-export const currentTimeAtom = atom(0);
-export const isPlayingAtom = atom(false);
-export const currentTrackIndexAtom = atom(-1);
+
 export const currentPlaylistAtom = atom<{
   playlistId: string;
   songs: MusicMetadata[];

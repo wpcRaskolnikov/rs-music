@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import { useState, useEffect } from "react";
 import {
   TableBody,
@@ -19,14 +20,17 @@ import {
   TableHead,
   Chip,
 } from "@mui/material";
+import HeadphonesIcon from "@mui/icons-material/Headphones";
 import DownloadIcon from "@mui/icons-material/Download";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
-import { useAtomValue } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import {
   downloadDirAtom,
+  isPlayingAtom,
   selectedApiAtom,
   qualitiesAtom,
   searchQueryAtom,
+  onlineTrackAtom
 } from "../../store";
 import { formatTime } from "../../utils";
 import { EmptyText } from "../../components";
@@ -54,10 +58,13 @@ export default function OnlineTable({ source }: OnlineTableProps) {
   const downloadDir = useAtomValue(downloadDirAtom);
   const selectedApi = useAtomValue(selectedApiAtom);
   const qualitiesMap = useAtomValue(qualitiesAtom);
+  const setIsPlaying = useSetAtom(isPlayingAtom);
   const [downloading, setDownloading] = useState<Set<string>>(new Set());
   const [pendingSong, setPendingSong] = useState<OnlineSongInfo | null>(null);
   const [open, setOpen] = useState(false);
   const [page, setPage] = useState(1);
+
+  const setOnlineTrack = useSetAtom(onlineTrackAtom);
 
   useEffect(() => {
     setPage(1);
@@ -112,6 +119,28 @@ export default function OnlineTable({ source }: OnlineTableProps) {
     }
   };
 
+  const handlePlay = async (song: OnlineSongInfo) => {
+    if (!selectedApi) {
+      alert("请先在设置中导入并选择一个音源");
+      return;
+    }
+    setOnlineTrack({
+        src: "",
+        title: song.title,
+        artist: song.artist,
+        album: song.album || "在线音乐",
+        duration: song.duration,
+      });
+
+    const url = await invoke<string>("get_music_url", {
+      id: song.id,
+      platform: song.src,
+      quality: "128k",
+    });
+    setIsPlaying(true);
+    await invoke("play_online_music", { url });
+  };
+
   if (!query.trim()) {
     return <EmptyText text="输入关键词搜索在线音源" />;
   }
@@ -135,7 +164,7 @@ export default function OnlineTable({ source }: OnlineTableProps) {
             <TableCell sx={{ width: "auto" }}>歌曲名</TableCell>
             <TableCell sx={{ width: "15%" }}>歌手</TableCell>
             <TableCell sx={{ width: "15%" }}>专辑</TableCell>
-            <TableCell sx={{ width: "10%" }}>操作</TableCell>
+            <TableCell sx={{ width: "15%" }}>操作</TableCell>
             <TableCell sx={{ width: "10%" }}>时长</TableCell>
           </TableRow>
         </TableHead>
@@ -146,6 +175,14 @@ export default function OnlineTable({ source }: OnlineTableProps) {
               <TableCell>{song.artist}</TableCell>
               <TableCell>{song.album}</TableCell>
               <TableCell>
+                <Tooltip title="播放">
+                  <IconButton
+                    size="small"
+                    onClick={() => handlePlay(song)}
+                  >
+                    <HeadphonesIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
                 <Tooltip title="下载">
                   <IconButton
                     size="small"

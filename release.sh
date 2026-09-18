@@ -25,7 +25,9 @@ fi
 echo "Bumping to version: $NEW"
 
 # Update version in package.json
-sed -i 's/"version": *"[^"]*"/"version": "'"$NEW"'"/' package.json
+sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$NEW\"/" package.json
+sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$NEW\"/" src-tauri/tauri.conf.json
+sed -i "s/^version = \"[^\"]*\"/version = \"$NEW\"/" src-tauri/Cargo.toml
 
 git add .
 git commit -m "release: version $NEW"

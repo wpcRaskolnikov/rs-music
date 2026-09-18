@@ -1,4 +1,5 @@
 use crate::db::Db;
+use crate::stream_reader::StreamReader;
 use crate::tag::MusicMetadata;
 use rodio::source::EmptyCallback;
 use std::sync::OnceLock;
@@ -77,6 +78,7 @@ enum MusicCommand {
     PlayNext,
     PlayPrev,
     Move(usize, usize),
+    PlayOnline(String),
 }
 
 // 全局事件通道
@@ -121,7 +123,7 @@ fn load_audio_settings(app: &tauri::AppHandle) -> AudioSettings {
 }
 
 fn play_file(sink: &rodio::Sink, path: &str) {
-    sink.stop();
+    sink.clear();
     match std::fs::File::open(path) {
         Err(e) => eprintln!("无法打开音频文件: {}", e),
         Ok(file) => match rodio::Decoder::try_from(file) {
@@ -142,6 +144,25 @@ fn play_at(app: &tauri::AppHandle, sink: &rodio::Sink, entry: PlaylistEntry) {
     }
     app.emit("current-music-changed", entry.index).ok();
     sink.append(EmptyCallback::new(Box::new(play_next)));
+}
+
+fn play_url(sink: &rodio::Sink, url: &str) {
+    sink.clear();
+    let reader = StreamReader::new(url);
+    let byte_len = reader.byte_len();
+    match rodio::Decoder::builder()
+        .with_data(reader)
+        .with_byte_len(byte_len)
+        .with_seekable(true)
+        .build()
+    {
+        Err(e) => eprintln!("网络音频解码失败: {}", e),
+        Ok(decoder) => {
+            sink.append(decoder);
+            sink.append(EmptyCallback::new(Box::new(play_next)));
+            sink.play();
+        }
+    }
 }
 
 // 启动管理线程
@@ -260,6 +281,9 @@ pub fn init_music_thread(app: tauri::AppHandle) {
                         .position(|m| m.src == playing_src)
                         .unwrap_or(playlist.current_index);
                 }
+                MusicCommand::PlayOnline(url) => {
+                    play_url(&sink, &url);
+                }
             }
         }
     });
@@ -332,5 +356,12 @@ pub fn play_next() {
 pub fn play_prev() {
     if let Some(tx) = MUSIC_TX.get() {
         let _ = tx.send(MusicCommand::PlayPrev);
+    }
+}
+
+#[tauri::command]
+pub fn play_online_music(url: String) {
+    if let Some(tx) = MUSIC_TX.get() {
+        let _ = tx.send(MusicCommand::PlayOnline(url));
     }
 }

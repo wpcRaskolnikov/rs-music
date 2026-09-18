@@ -4,6 +4,7 @@ mod lrc;
 mod music;
 mod progress;
 mod script_engine;
+mod stream_reader;
 mod tag;
 mod tray;
 
@@ -53,6 +54,7 @@ pub fn run() {
             script_engine::get_music_url,
             script_engine::get_qualities,
             download::start_download,
+            music::play_online_music,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
