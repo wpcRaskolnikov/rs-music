@@ -8,33 +8,44 @@ import {
   TableBody,
   TableContainer,
   IconButton,
+  Tooltip,
   Chip,
   CircularProgress,
   Typography,
 } from "@mui/material";
+import type { ChipProps } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
+import { useAtom } from "jotai";
+import { listen } from "@tauri-apps/api/event";
 import { EmptyText } from "../components";
-import { onDownloadStatusUpdate } from "../utils/download";
-import type { DownloadTask } from "../utils/download";
-import { Tooltip } from "@mui/material";
-import { db } from "../store/db";
+import { db, downloadsAtom, type DownloadTask } from "../store";
+
+type DownloadStatusEvent =
+  | { type: "ready" }
+  | { type: "completed" }
+  | { type: "processing"; data: number }
+  | { type: "error"; data: string };
+
+type DownloadStatusPayload = {
+  id: string;
+  status: DownloadStatusEvent;
+};
 
 const statusMap: Record<
   string,
   {
     label: string;
-    color: "default" | "primary" | "success" | "error" | "warning";
+    color: ChipProps["color"];
   }
 > = {
-  downloading: { label: "下载中", color: "primary" },
+  processing: { label: "下载中", color: "primary" },
   completed: { label: "已完成", color: "success" },
   error: { label: "失败", color: "error" },
-  cancelled: { label: "已取消", color: "default" },
-  pending: { label: "等待中", color: "warning" },
+  ready: { label: "准备中", color: "warning" },
 };
 
 const DownloadList: React.FC = () => {
-  const [tasks, setTasks] = useState<DownloadTask[]>([]);
+  const [tasks, setTasks] = useAtom(downloadsAtom);
   const [loading, setLoading] = useState(true);
   const [progressMap, setProgressMap] = useState<Record<string, number>>({});
 
@@ -47,35 +58,35 @@ const DownloadList: React.FC = () => {
     });
   }, []);
 
-  // Listen to events
   useEffect(() => {
-    const updateTask = (
-      id: string,
-      updater: (t: DownloadTask) => DownloadTask,
-    ) => {
-      setTasks((prev) => prev.map((t) => (t.id === id ? updater(t) : t)));
-    };
+    const unlisten = listen<DownloadStatusPayload>(
+      "download-status-update",
+      ({ payload: { id, status } }) => {
+        const next = (() => {
+          switch (status.type) {
+            case "processing":
+              return { taskStatus: "processing", progress: status.data };
+            case "completed":
+              return { taskStatus: "completed", progress: 100 };
+            case "error":
+              return { taskStatus: status.data, progress: 0 };
+            case "ready":
+              return { taskStatus: "ready", progress: 0 };
+          }
+        })();
 
-    const listeners = [
-      onDownloadStatusUpdate(({ id, status }) => {
-        switch (status.type) {
-          case "processing":
-            setProgressMap((prev) => ({ ...prev, [id]: status.data }));
-            updateTask(id, (t) => ({ ...t, status: "downloading" }));
-            break;
-          case "completed":
-            setProgressMap((prev) => ({ ...prev, [id]: 100 }));
-            updateTask(id, (t) => ({ ...t, status: "completed" }));
-            break;
-          case "error":
-            updateTask(id, (t) => ({ ...t, status: "error" }));
-            break;
-        }
-      }),
-    ];
+        setProgressMap((prev) => ({ ...prev, [id]: next.progress }));
+
+        setTasks((prev) =>
+          prev.map((t) =>
+            t.id === id ? { ...t, status: next.taskStatus } : t,
+          ),
+        );
+      },
+    );
 
     return () => {
-      listeners.forEach((unlisten) => unlisten.then((u) => u()));
+      unlisten.then((fn) => fn());
     };
   }, []);
 
@@ -114,7 +125,8 @@ const DownloadList: React.FC = () => {
                 label: task.status,
                 color: "default",
               };
-              const progress = progressMap[task.id] ?? 100;
+              const progress =
+                progressMap[task.id] ?? (task.status === "completed" ? 100 : 0);
               return (
                 <TableRow key={task.id} hover>
                   <TableCell>{task.title}</TableCell>

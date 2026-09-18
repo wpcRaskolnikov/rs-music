@@ -24,8 +24,8 @@ import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import { useAtomValue } from "jotai";
 import {
   downloadDirAtom,
-  userApiListAtom,
-  selectedApiIdAtom,
+  selectedApiAtom,
+  qualitiesAtom,
   searchQueryAtom,
 } from "../../store";
 import { formatTime } from "../../utils";
@@ -36,9 +36,9 @@ import { LIMIT as WY_LIMIT } from "../../utils/musicSearch/wy";
 import { downloadSong } from "../../utils/download";
 import type { Quality } from "../../utils/download";
 
-const qualities: Quality[] = ["128k", "320k", "flac", "flac24bit"];
 const qualityLabels: Record<Quality, string> = {
   "128k": "标准音质 (128k)",
+  "192k": "中高音质 (192k)",
   "320k": "高音质 (320k)",
   flac: "无损音质 (FLAC)",
   flac24bit: "高解析无损 (FLAC 24bit)",
@@ -52,8 +52,8 @@ export interface OnlineTableProps {
 export default function OnlineTable({ source }: OnlineTableProps) {
   const query = useAtomValue(searchQueryAtom);
   const downloadDir = useAtomValue(downloadDirAtom);
-  const userApiList = useAtomValue(userApiListAtom);
-  const selectedApiId = useAtomValue(selectedApiIdAtom);
+  const selectedApi = useAtomValue(selectedApiAtom);
+  const qualitiesMap = useAtomValue(qualitiesAtom);
   const [downloading, setDownloading] = useState<Set<string>>(new Set());
   const [pendingSong, setPendingSong] = useState<OnlineSongInfo | null>(null);
   const [open, setOpen] = useState(false);
@@ -89,13 +89,8 @@ export default function OnlineTable({ source }: OnlineTableProps) {
     setOpen(true);
   };
   const handleDownloadWithQuality = async (quality: Quality) => {
-    if (!selectedApiId) {
+    if (!selectedApi) {
       alert("请先在设置中导入并选择一个音源");
-      return;
-    }
-    const api = userApiList.find((a) => a.id === selectedApiId);
-    if (!api) {
-      alert("未找到选中的音源脚本");
       return;
     }
 
@@ -105,7 +100,7 @@ export default function OnlineTable({ source }: OnlineTableProps) {
     setOpen(false);
 
     try {
-      await downloadSong(api.scriptContent, pendingSong, quality, downloadDir);
+      await downloadSong(pendingSong, quality, downloadDir);
     } catch (e: any) {
       console.error("Download failed:", e);
       setDownloading((prev) => {
@@ -182,13 +177,21 @@ export default function OnlineTable({ source }: OnlineTableProps) {
         <DialogTitle>选择音质</DialogTitle>
         <DialogContent>
           <List>
-            {qualities.map((q) => (
-              <ListItem key={q} disablePadding>
-                <ListItemButton onClick={() => handleDownloadWithQuality(q)}>
-                  <ListItemText primary={qualityLabels[q]} />
-                </ListItemButton>
-              </ListItem>
-            ))}
+            {(() => {
+              const qs = qualitiesMap[pendingSong?.src ?? ""] ?? [];
+              const order: Quality[] = ["128k", "192k", "320k", "flac", "flac24bit"];
+              const valid = order.filter((q) => qs.includes(q));
+              if (valid.length === 0) {
+                return <ListItem disablePadding><ListItemText primary="未获取到音质列表" /></ListItem>;
+              }
+              return valid.map((q) => (
+                <ListItem key={q} disablePadding>
+                  <ListItemButton onClick={() => handleDownloadWithQuality(q)}>
+                    <ListItemText primary={qualityLabels[q]} />
+                  </ListItemButton>
+                </ListItem>
+              ));
+            })()}
           </List>
         </DialogContent>
         <DialogActions>

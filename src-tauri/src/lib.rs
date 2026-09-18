@@ -2,11 +2,12 @@ mod db;
 mod download;
 mod lrc;
 mod music;
-mod music_url;
 mod progress;
+mod script_engine;
 mod tag;
 mod tray;
 
+use script_engine::ScriptEngine;
 use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -24,6 +25,8 @@ pub fn run() {
         .setup(|app| {
             let db = tauri::async_runtime::block_on(db::setup_db(app.handle()));
             app.manage(db);
+            let engine = tauri::async_runtime::block_on(ScriptEngine::new());
+            app.manage(engine);
             music::init_music_thread(app.handle().clone());
             tray::setup_tray(app)?;
             Ok(())
@@ -46,9 +49,10 @@ pub fn run() {
             db::add_music_files,
             db::add_music_folder,
             db::move_music,
-            music_url::get_music_url,
+            script_engine::init_script,
+            script_engine::get_music_url,
+            script_engine::get_qualities,
             download::start_download,
-            download::cancel_download,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -24,6 +24,16 @@ async fn do_download(
     progress_tx: Option<mpsc::Sender<u8>>,
 ) -> Result<()> {
     let resp = reqwest::get(url).await?;
+
+    let is_text = resp
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|ct| ct.starts_with("text/") || ct.contains("json") || ct.contains("xml"));
+    if is_text {
+        return Err(anyhow::anyhow!("非音频响应"));
+    }
+
     let total_size = resp.content_length().unwrap_or(0);
 
     if let Some(parent) = Path::new(save_path).parent() {
@@ -62,7 +72,10 @@ pub async fn start_download(
 
     tokio::spawn(async move {
         let emit = |status: DownloadStatus| {
-            let _ = app.emit("download-status-update", (&id, status));
+            let _ = app.emit("download-status-update", serde_json::json!({
+                "id": id,
+                "status": status
+            }));
         };
 
         emit(DownloadStatus::Ready);
@@ -105,17 +118,5 @@ pub async fn start_download(
         }
     });
 
-    Ok(())
-}
-
-#[tauri::command]
-pub async fn cancel_download(db: tauri::State<'_, Db>, id: String) -> Result<(), String> {
-    sqlx::query(
-        "UPDATE downloads SET status = 'cancelled', updated_at = datetime('now') WHERE id = ?",
-    )
-    .bind(&id)
-    .execute(&*db)
-    .await
-    .map_err(|e| e.to_string())?;
     Ok(())
 }

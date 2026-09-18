@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS downloads (
     album TEXT NOT NULL,
     quality TEXT NOT NULL,
     url TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'pending',
+    status TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );

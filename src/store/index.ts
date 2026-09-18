@@ -21,9 +21,12 @@ export {
   shortcutsAtom,
   userApiListAtom,
   selectedApiIdAtom,
+  selectedApiAtom,
+  qualitiesAtom,
   downloadDirAtom,
 } from "./settingsAtom";
 
 export type { Shortcuts, UserApiMeta } from "./settingsAtom";
 
-export { db } from "./db";
+export { db, downloadsAtom } from "./db";
+export type { DownloadTask } from "./db";

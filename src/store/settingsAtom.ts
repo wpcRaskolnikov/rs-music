@@ -64,6 +64,12 @@ export interface UserApiMeta {
 }
 export const userApiListAtom = atomWithSettings<UserApiMeta[]>("userApis", []);
 export const selectedApiIdAtom = atomWithSettings<string>("selectedApiId", "");
+export const selectedApiAtom = atom((get) => {
+  const apis = get(userApiListAtom);
+  const selectedId = get(selectedApiIdAtom);
+  return apis.find((a) => a.id === selectedId) ?? null;
+});
+export const qualitiesAtom = atom<Record<string, string[]>>({});
 
 const defaultDir = await downloadDir();
 export const downloadDirAtom = atomWithSettings<string>(
