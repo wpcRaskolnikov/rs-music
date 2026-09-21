@@ -154,6 +154,7 @@ fn play_url(sink: &rodio::Sink, url: &str) {
         .with_data(reader)
         .with_byte_len(byte_len)
         .with_seekable(true)
+        .with_gapless(true)
         .build()
     {
         Err(e) => eprintln!("网络音频解码失败: {}", e),

@@ -3,7 +3,7 @@
 # Description: Bump version, commit, tag, and push to GitHub
 # Last Modified: 2026.8.31
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")" || exit
 
 # Read current version from package.json
 CURRENT=$(grep '"version"' package.json | head -1 | sed 's/.*"version": *"\([0-9][^"]*\)".*/\1/')
