@@ -24,7 +24,7 @@
     {
       "identifier": "http:default",
       "allow": [
-        { "url": "http://search.kuwo.cn/*" },
+        { "url": "http://*.kuwo.cn/*" },
         { "url": "https://*.kugou.com/*" },
         { "url": "https://*.y.qq.com/*" },
         { "url": "http://music.163.com/*" },

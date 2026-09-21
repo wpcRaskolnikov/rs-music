@@ -35,7 +35,7 @@ import {
 import { formatTime } from "../../utils";
 import { EmptyText } from "../../components";
 import type { OnlineSongInfo, Source } from "../../utils/musicSearch/types";
-import { useOnlineSearch } from "../../utils/musicSearch/hooks";
+import { useOnlineSearch } from "../../utils/musicSearch";
 import { LIMIT as WY_LIMIT } from "../../utils/musicSearch/wy";
 import { downloadSong } from "../../utils/download";
 import type { Quality } from "../../utils/download";
@@ -125,7 +125,7 @@ export default function OnlineTable({ source }: OnlineTableProps) {
       return;
     }
     setOnlineTrack({
-        src: "",
+        src: `${song.src}:${song.id}`,
         title: song.title,
         artist: song.artist,
         album: song.album || "在线音乐",

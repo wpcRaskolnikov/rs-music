@@ -3,11 +3,11 @@ import { Box, Tab } from "@mui/material";
 import { TabContext, TabList, TabPanel } from "@mui/lab";
 
 import { LocalTable, OnlineTable } from "../components";
-import { sourceNameMap } from "../utils/musicSearch/types";
+import { providers } from "../utils/musicSearch";
 import type { Source } from "../utils/musicSearch/types";
 
 const onlineSources: Source[] = ["kw", "kg", "tx", "wy", "mg"];
-const tabLabels = ["本地", ...onlineSources.map((s) => sourceNameMap[s])];
+const tabLabels = ["本地", ...onlineSources.map((s) => providers[s].name)];
 
 const SearchList: React.FC = () => {
   const [tabValue, setTabValue] = useState("0");

@@ -158,12 +158,10 @@ fn play_url(sink: &rodio::Sink, url: &str) {
         .build()
     {
         Err(e) => eprintln!("网络音频解码失败: {}", e),
-        Ok(decoder) => {
-            sink.append(decoder);
-            sink.append(EmptyCallback::new(Box::new(play_next)));
-            sink.play();
-        }
+        Ok(decoder) => sink.append(decoder),
     }
+    sink.append(EmptyCallback::new(Box::new(play_next)));
+    sink.play();
 }
 
 // 启动管理线程

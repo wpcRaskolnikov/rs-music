@@ -26,3 +26,34 @@ export function base64Encode(data: Uint8Array): string {
   }
   return btoa(binary);
 }
+
+export function base64Decode(str: string): Uint8Array {
+  const binary = atob(str);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+export function aesCbcEncrypt(plaintext: string, key: string, iv: string): string {
+  return CryptoJS.AES.encrypt(plaintext, CryptoJS.enc.Utf8.parse(key), {
+    iv: CryptoJS.enc.Utf8.parse(iv),
+    mode: CryptoJS.mode.CBC,
+    padding: CryptoJS.pad.Pkcs7,
+  }).toString();
+}
+
+// --- KW XOR encoding for lyric requests ---
+const KW_LYRIC_KEY = new TextEncoder().encode("yeelion");
+
+export function kwLyricParam(id: string, isLyricx = true): string {
+  let params = `user=12345,web,web,web&requester=localhost&req=1&rid=MUSIC_${id}`;
+  if (isLyricx) params += "&lrcx=1";
+  const bufStr = new TextEncoder().encode(params);
+  const output = new Uint16Array(bufStr.length);
+  for (let i = 0; i < bufStr.length; i++) {
+    output[i] = KW_LYRIC_KEY[i % KW_LYRIC_KEY.length] ^ bufStr[i];
+  }
+  return btoa(String.fromCharCode(...output));
+}

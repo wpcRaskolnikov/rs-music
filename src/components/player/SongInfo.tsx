@@ -10,7 +10,9 @@ import {
 import { Close as CloseIcon } from "@mui/icons-material";
 import { invoke } from "@tauri-apps/api/core";
 import { useAtomValue } from "jotai";
-import { currentTrackInfoAtom } from "../../store";
+import { currentTrackInfoAtom, onlineTrackAtom } from "../../store";
+import { getCoverUrl } from "../../utils/musicSearch";
+import type { Source } from "../../utils/musicSearch/types";
 
 const textProps = {
   variant: "caption" as const,
@@ -26,14 +28,27 @@ const SongInfo: React.FC = () => {
   const [cover, setCover] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
 
+  const onlineTrack = useAtomValue(onlineTrackAtom);
+
   useEffect(() => {
     if (!src) {
       setCover(null);
       return;
     }
-    invoke<string>("get_album_cover", { path: src })
-      .then((b64) => setCover(`data:image/png;base64,${b64}`))
-      .catch(() => setCover(null));
+
+    if (onlineTrack) {
+      const parts = src.split(":");
+      const source = parts[0] as Source;
+      const id = parts.slice(1).join(":");
+
+      getCoverUrl(source, id)
+        .then((url) => setCover(url))
+        .catch(() => setCover(null));
+    } else {
+      invoke<string>("get_album_cover", { path: src })
+        .then((b64) => setCover(`data:image/png;base64,${b64}`))
+        .catch(() => setCover(null));
+    }
   }, [src]);
 
   return (
