@@ -4,21 +4,122 @@ import { fetch } from "@tauri-apps/plugin-http";
 import { aesEcbEncrypt, md5 } from "../crypto";
 
 export const LIMIT = 20;
-const EAPI_KEY = "e82ckenh8dichen8";
 
-function getSinger(singers: any[]): string {
-  return singers.filter((s: any) => s.name).map((s: any) => s.name).join("、");
-}
+export const wyProvider: MusicProvider = {
+  name: "网易云",
+
+  search: async (keyword, page = 1, limit = 20): Promise<SearchResult> => {
+    const url = "/api/search/song/list/page";
+    const data = {
+      keyword,
+      needCorrect: "1",
+      channel: "typing",
+      offset: limit * (page - 1),
+      scene: "normal",
+      total: page === 1,
+      limit,
+    };
+    const formData = new URLSearchParams(eapi(url, data));
+
+    try {
+      const resp = await fetch("http://interface.music.163.com/eapi/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: formData.toString(),
+      });
+
+      const result = await resp.json();
+      if (!result || result.code !== 200) {
+        return { songs: [], total: 0 };
+      }
+
+      const songs = handleSearchResult(result.data?.resources || []);
+      const total = Math.min(result.data?.totalCount || 0, 300);
+      return { songs, total };
+    } catch (e) {
+      return { songs: [], total: 0 };
+    }
+  },
+
+  getCoverUrl: async (id: string): Promise<string> => {
+    const resp = await fetch("http://music.163.com/api/song/detail/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Referer: "https://music.163.com",
+      },
+      body: `ids=[${id}]`,
+    });
+
+    try {
+      const result = await resp.json();
+      if (!result.songs?.length) throw new Error("获取封面失败");
+      return result.songs[0].album?.picUrl ?? "";
+    } catch (e) {
+      console.error("wy getCoverUrl error:", e);
+      throw e;
+    }
+  },
+
+  getLyric: async (id: string): Promise<string | null> => {
+    function fixTimeLabel(lrc: string): string {
+      return lrc.replace(/\[(\d{2}:\d{2}):(\d{2})]/g, "[$1.$2]");
+    }
+
+    const url = "/api/song/lyric/v1";
+    const data = {
+      id: Number(id),
+      cp: false,
+      tv: 0,
+      lv: 0,
+      rv: 0,
+      kv: 0,
+      yv: 0,
+      ytv: 0,
+      yrv: 0,
+    };
+    const formData = new URLSearchParams(eapi(url, data));
+
+    const resp = await fetch(
+      "https://interface3.music.163.com/eapi/song/lyric/v1",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "User-Agent":
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.90 Safari/537.36",
+          Referer: "https://music.163.com",
+        },
+        body: formData.toString(),
+      },
+    );
+
+    const body = await resp.json();
+    if (body.code !== 200 || !body?.lrc?.lyric) return null;
+
+    const lrc = fixTimeLabel(body.lrc.lyric);
+    const tlyric = body.tlyric?.lyric ? fixTimeLabel(body.tlyric.lyric) : "";
+    return combineLrc(lrc, tlyric);
+  },
+};
 
 function eapi(url: string, object: Record<string, any>): { params: string } {
+  const EAPI_KEY = "e82ckenh8dichen8";
+
   const text = JSON.stringify(object);
-  const message = `nobody${url}use${text}md5forencrypt`;
-  const digest = md5(message);
+  const digest = md5(`nobody${url}use${text}md5forencrypt`);
   const data = `${url}-36cd479b6b5-${text}-36cd479b6b5-${digest}`;
   return { params: aesEcbEncrypt(data, EAPI_KEY) };
 }
 
-function handleResult(rawList: any[]): OnlineSongInfo[] {
+function handleSearchResult(rawList: any[]): OnlineSongInfo[] {
+  function getSinger(singers: any[]): string {
+    return singers
+      .filter((s: any) => s.name)
+      .map((s: any) => s.name)
+      .join("、");
+  }
+
   if (!rawList) return [];
   return rawList
     .map((item) => {
@@ -35,104 +136,3 @@ function handleResult(rawList: any[]): OnlineSongInfo[] {
     })
     .filter((s): s is NonNullable<typeof s> => s !== null);
 }
-
-function fixTimeLabel(lrc: string): string {
-  return lrc.replace(/\[(\d{2}:\d{2}):(\d{2})]/g, "[$1.$2]");
-}
-
-export const wyProvider: MusicProvider = {
-  name: "网易云",
-
-  search: async (keyword, page = 1, limit = 20): Promise<SearchResult> => {
-    try {
-      const url = "/api/search/song/list/page";
-      const data = {
-        keyword,
-        needCorrect: "1",
-        channel: "typing",
-        offset: limit * (page - 1),
-        scene: "normal",
-        total: page === 1,
-        limit,
-      };
-
-      const encryptedData = eapi(url, data);
-      const formData = new URLSearchParams();
-      formData.set("params", encryptedData.params);
-
-      const resp = await fetch("http://interface.music.163.com/eapi/batch", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: formData.toString(),
-      });
-
-      const result = await resp.json();
-      if (!result || result.code !== 200) {
-        return { songs: [], total: 0 };
-      }
-
-      const songs = handleResult(result.data?.resources || []);
-      const total = Math.min(result.data?.totalCount || 0, 300);
-      return { songs, total };
-    } catch (e) {
-      return { songs: [], total: 0 };
-    }
-  },
-
-  getCoverUrl: async (id: string): Promise<string> => {
-    try {
-      const resp = await fetch("http://music.163.com/api/song/detail/", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          Referer: "https://music.163.com",
-        },
-        body: `ids=[${id}]`,
-      });
-
-      const result = await resp.json();
-      if (!result.songs?.length) throw new Error("获取封面失败");
-      return result.songs[0].album?.picUrl ?? "";
-    } catch (e) {
-      console.error("wy getCoverUrl error:", e);
-      throw e;
-    }
-  },
-
-  getLyric: async (id: string): Promise<string | null> => {
-    const url = "/api/song/lyric/v1";
-    const data = {
-      id: Number(id),
-      cp: false,
-      tv: 0,
-      lv: 0,
-      rv: 0,
-      kv: 0,
-      yv: 0,
-      ytv: 0,
-      yrv: 0,
-    };
-
-    const encryptedData = eapi(url, data);
-    const formData = new URLSearchParams();
-    formData.set("params", encryptedData.params);
-
-    const resp = await fetch("https://interface3.music.163.com/eapi/song/lyric/v1", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        "User-Agent":
-          "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.90 Safari/537.36",
-        Referer: "https://music.163.com",
-      },
-      body: formData.toString(),
-    });
-
-    const body = await resp.json();
-    if (body.code !== 200 || !body?.lrc?.lyric) return null;
-
-    const lrc = fixTimeLabel(body.lrc.lyric);
-    const tlyric = body.tlyric?.lyric ? fixTimeLabel(body.tlyric.lyric) : "";
-    return combineLrc(lrc, tlyric);
-  },
-};

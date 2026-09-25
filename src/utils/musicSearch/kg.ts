@@ -38,7 +38,7 @@ function fail(): SearchResult {
   return { songs: [], total: 0 };
 }
 
-function searchLastPageSync(
+async function searchLastPageSync(
   keyword: string,
   page: number,
   limit: number,

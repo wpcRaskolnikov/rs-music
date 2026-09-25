@@ -10,6 +10,7 @@ import {
 
 export const kwProvider: MusicProvider = {
   name: "酷我",
+
   search: async (keyword, page = 1, limit = 50): Promise<SearchResult> => {
     const url = new URL("http://search.kuwo.cn/r.s");
     url.search = new URLSearchParams({
