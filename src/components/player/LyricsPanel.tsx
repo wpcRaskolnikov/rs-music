@@ -13,23 +13,6 @@ import type { LrcLine } from "../../store";
 import { getLyric } from "../../utils/musicSearch";
 import type { Source } from "../../utils/musicSearch/types";
 
-function parseLrcText(text: string): LrcLine[] {
-  const re = /\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)/;
-  const lines: LrcLine[] = [];
-
-  for (const line of text.split("\n")) {
-    const m = line.match(re);
-    if (!m) continue;
-    const time = parseInt(m[1]) * 60000 + parseInt(m[2]) * 1000 + parseInt(m[3].padEnd(3, "0"));
-    const content = m[4].trim();
-    if (!content) continue;
-    lines.push({ time: time / 1000, content });
-  }
-
-  lines.sort((a, b) => a.time - b.time);
-  return lines;
-}
-
 function getLineStyle(i: number, activeIndex: number) {
   if (activeIndex < 0) return { opacity: 0.55 };
 
@@ -125,17 +108,13 @@ const LyricsPanel: React.FC = () => {
       const source = parts[0] as Source;
       const id = parts.slice(1).join(":");
 
-      getLyric(source, id).then((result) => {
-        if (result) {
-          const lines: LrcLine[] = [];
-          if (result.lyric) {
-            const parsed = parseLrcText(result.lyric);
-            lines.push(...parsed);
-          }
-          setLyrics(lines.length ? lines : null);
-        } else {
-          setLyrics(null);
-        }
+      getLyric(source, id).then(async (result) => {
+        const lines = result
+          ? await invoke<LrcLine[] | null>("parse_lyrics_content", {
+              content: result,
+            })
+          : null;
+        setLyrics(lines);
         setDisplayKey(src);
       });
     } else {

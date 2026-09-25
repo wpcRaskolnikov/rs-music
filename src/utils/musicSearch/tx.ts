@@ -2,11 +2,10 @@ import type {
   MusicProvider,
   SearchResult,
   OnlineSongInfo,
-  LyricInfo,
 } from "./types";
 import { fetch } from "@tauri-apps/plugin-http";
 import { sha1, base64Encode } from "../crypto";
-import { formatSingerName } from "../index";
+import { formatSingerName, combineLrc } from "../index";
 
 const PART_1_INDEXES = [23, 14, 6, 36, 16, 40, 7, 19];
 const PART_2_INDEXES = [16, 1, 32, 12, 19, 27, 8, 5];
@@ -51,25 +50,11 @@ async function getSongInfo(
   };
 }
 
-async function parseTxLyric(
-  lrc: string,
-  tlrc: string,
-  rlrc: string,
-): Promise<LyricInfo> {
+function parseTxLyric(lrc: string, tlrc: string): string {
   try {
-    return {
-      lyric: atob(lrc || ""),
-      tlyric: tlrc ? atob(tlrc) : "",
-      rlyric: rlrc ? atob(rlrc) : "",
-      lxlyric: "",
-    };
+    return combineLrc(atob(lrc || ""), tlrc ? atob(tlrc) : "");
   } catch {
-    return {
-      lyric: lrc || "",
-      tlyric: tlrc || "",
-      rlyric: rlrc || "",
-      lxlyric: "",
-    };
+    return combineLrc(lrc || "", tlrc || "");
   }
 }
 
@@ -150,7 +135,7 @@ export const txProvider: MusicProvider = {
     return `https://y.gtimg.cn/music/photo_new/T002R500x500M000${info.albumMid}.jpg`;
   },
 
-  getLyric: async (id: string): Promise<LyricInfo | null> => {
+  getLyric: async (id: string): Promise<string | null> => {
     const info = await getSongInfo(id);
     if (!info.songId) return null;
 
@@ -186,8 +171,8 @@ export const txProvider: MusicProvider = {
     const body = await resp.json();
     if (body.code !== 0 || body.req?.code !== 0) return null;
 
-    const { lyric, trans, roma } = body.req.data;
-    return parseTxLyric(lyric, trans, roma);
+    const { lyric, trans } = body.req.data;
+    return parseTxLyric(lyric, trans);
   },
 };
 

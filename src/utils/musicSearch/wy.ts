@@ -1,4 +1,5 @@
-import type { MusicProvider, SearchResult, OnlineSongInfo, LyricInfo } from "./types";
+import { combineLrc } from "../index";
+import type { MusicProvider, SearchResult, OnlineSongInfo } from "./types";
 import { fetch } from "@tauri-apps/plugin-http";
 import { aesEcbEncrypt, md5 } from "../crypto";
 
@@ -37,43 +38,6 @@ function handleResult(rawList: any[]): OnlineSongInfo[] {
 
 function fixTimeLabel(lrc: string): string {
   return lrc.replace(/\[(\d{2}:\d{2}):(\d{2})]/g, "[$1.$2]");
-}
-
-function parseYrc(yrc: string): { lxlyric: string } | null {
-  if (!yrc) return null;
-  const lines = yrc.split("\n");
-  const lrcLines: string[] = [];
-  const lxLines: string[] = [];
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-    const m = trimmed.match(/^\[(\d+),\d+\]/);
-    if (!m) continue;
-
-    const startMs = parseInt(m[1]);
-    const ms = startMs % 1000;
-    const s = Math.floor(startMs / 1000) % 60;
-    const mi = Math.floor(startMs / 60000);
-    const timeTag = `[${String(mi).padStart(2, "0")}:${String(s).padStart(2, "0")}.${String(ms).padStart(3, "0")}]`;
-
-    const words = trimmed.replace(/^\[\d+,\d+\]/, "");
-    const text = words.replace(/\(\d+,\d+,\d+\)/g, "");
-    lrcLines.push(`${timeTag}${text}`);
-
-    const timeMatches = words.matchAll(/\((\d+),(\d+),\d+\)/g);
-    const wordParts = words.split(/\(\d+,\d+,\d+\)/);
-    wordParts.shift();
-    const wordTimes: string[] = [];
-    for (const tm of timeMatches) {
-      const t = parseInt(tm[1]) - startMs;
-      wordTimes.push(`<${Math.max(t, 0)},${tm[2]}>`);
-    }
-    const lxWord = wordTimes.map((t, i) => `${t}${wordParts[i] ?? ""}`).join("");
-    lxLines.push(`${timeTag}${lxWord}`);
-  }
-
-  if (!lrcLines.length) return null;
-  return { lxlyric: lxLines.join("\n") };
 }
 
 export const wyProvider: MusicProvider = {
@@ -135,7 +99,7 @@ export const wyProvider: MusicProvider = {
     }
   },
 
-  getLyric: async (id: string): Promise<LyricInfo | null> => {
+  getLyric: async (id: string): Promise<string | null> => {
     const url = "/api/song/lyric/v1";
     const data = {
       id: Number(id),
@@ -169,14 +133,6 @@ export const wyProvider: MusicProvider = {
 
     const lrc = fixTimeLabel(body.lrc.lyric);
     const tlyric = body.tlyric?.lyric ? fixTimeLabel(body.tlyric.lyric) : "";
-    const romalrc = body.romalrc?.lyric ? fixTimeLabel(body.romalrc.lyric) : "";
-    const yrc = body.yrc?.lyric ? parseYrc(body.yrc.lyric) : null;
-
-    return {
-      lyric: lrc,
-      tlyric,
-      rlyric: romalrc,
-      lxlyric: yrc?.lxlyric ?? "",
-    };
+    return combineLrc(lrc, tlyric);
   },
 };

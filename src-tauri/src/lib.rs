@@ -42,6 +42,7 @@ pub fn run() {
             music::stop_music,
             tag::get_album_cover,
             lrc::get_lyrics,
+            lrc::parse_lyrics_content,
             music::seek_music,
             music::set_volume,
             music::set_play_mode,

@@ -1,5 +1,5 @@
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import type { Source, SearchResult, LyricInfo, MusicProvider } from "./types";
+import type { Source, SearchResult, MusicProvider } from "./types";
 import { kwProvider } from "./kw";
 import { kgProvider } from "./kg";
 import { txProvider } from "./tx";
@@ -7,7 +7,7 @@ import { wyProvider } from "./wy";
 import { mgProvider } from "./mg";
 
 export { providers };
-export type { Source, SearchResult, LyricInfo, MusicProvider, OnlineSongInfo } from "./types";
+export type { Source, SearchResult, MusicProvider, OnlineSongInfo } from "./types";
 
 const providers: Record<Source, MusicProvider> = {
   kw: kwProvider,
@@ -59,6 +59,6 @@ export async function getCoverUrl(source: Source, id: string): Promise<string> {
 export async function getLyric(
   source: Source,
   id: string,
-): Promise<LyricInfo | null> {
+): Promise<string | null> {
   return getProvider(source).getLyric(id);
 }

@@ -1,9 +1,5 @@
-import type {
-  MusicProvider,
-  SearchResult,
-  OnlineSongInfo,
-  LyricInfo,
-} from "./types";
+import { combineLrc } from "../index";
+import type { MusicProvider, SearchResult, OnlineSongInfo } from "./types";
 import { fetch } from "@tauri-apps/plugin-http";
 import {
   base64Encode,
@@ -66,7 +62,7 @@ export const kwProvider: MusicProvider = {
     }
   },
 
-  getLyric: async (id: string): Promise<LyricInfo | null> => {
+  getLyric: async (id: string): Promise<string | null> => {
     const params = new URLSearchParams({
       user: "12345,web,web,web",
       requester: "localhost",
@@ -82,7 +78,7 @@ export const kwProvider: MusicProvider = {
     try {
       const resp = await fetch(`http://newlyric.kuwo.cn/newlyric.lrc?${param}`);
       if (!resp.ok) return null;
-      return parseKwLyric(await decodeLyric(await resp.arrayBuffer()));
+      return parseLyric(await decodeLyric(await resp.arrayBuffer()));
     } catch {
       return null;
     }
@@ -137,65 +133,57 @@ async function decodeLyric(raw: ArrayBuffer): Promise<string> {
   return new TextDecoder("gb18030").decode(data);
 }
 
-interface Line {
-  time: string;
-  text: string;
-}
+function parseLyric(text: string): string | null {
+  interface Line {
+    time: string;
+    text: string;
+  }
 
-function parseKwLyric(text: string): LyricInfo | null {
+  const LRC_LINE_REGEX = /^\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\](.*)$/;
+  const TAG_REGEX = /^\[(ver|ti|ar|al|offset|by|kuwo):.*\]$/;
+  const WORD_TIMING_REGEX = /<-?\d+,-?\d+(?:,-?\d+)?>/g;
+
   const tags: string[] = [];
   const lines: Line[] = [];
   const translations: Line[] = [];
   const times = new Set<string>();
-  let isLyricx = false;
 
-  console.log(text)
-
-  for (const rawLine of text.split(/\r\n|\r|\n/)) {
+  for (const rawLine of text.split(/\r?\n/)) {
     const line = rawLine.trim();
-    const match = /^\[(\d{1,2}:\d{2}(?:\.\d{1,3})?)\](.*)$/.exec(line);
+    const match = LRC_LINE_REGEX.exec(line);
     if (!match) {
-      if (/^\[(ver|ti|ar|al|offset|by|kuwo):.*\]$/.test(line)) tags.push(line);
+      if (TAG_REGEX.test(line)) tags.push(line);
       continue;
     }
-    const [minutes, seconds] = match[1].split(":");
-    const [whole, fraction = ""] = seconds.split(".");
-    const item = {
-      time: `${minutes.padStart(2, "0")}:${whole}.${fraction.padEnd(3, "0")}`,
-      text: match[2].trim(),
-    };
-    // In Kuwo's interleaved format, a translation carries the next line's time.
-    if (times.has(item.time)) {
-      if (lines.length < 2) continue;
-      const translation = lines.pop()!;
-      translation.time = lines[lines.length - 1].time;
-      translations.push(translation);
+
+    const [, min, sec, ms = "", content] = match;
+    const time = `${min.padStart(2, "0")}:${sec}.${ms.padEnd(3, "0")}`;
+    const cleanText = content.trim();
+
+    // 酷我交错格式：[t1]原文1、[t2]译文1、[t2]原文2。
+    if (times.has(time)) {
+      if (lines.length >= 2) {
+        const trans = lines.pop()!;
+        trans.time = lines[lines.length - 1].time;
+        translations.push(trans);
+      }
     } else {
-      times.add(item.time);
+      times.add(time);
     }
-    lines.push(item);
-    if (/^<-?\d+,-?\d+>/.test(item.text)) isLyricx = true;
+    lines.push({ time, text: cleanText });
   }
-  if (
-    !lines.length ||
-    (!isLyricx &&
-      translations.length > lines.length * 0.3 &&
-      lines.length - translations.length > 6)
-  )
-    return null;
+
+  if (!lines.length) return null;
 
   const format = (items: Line[]) =>
     [
       ...tags,
       ...items.map(
-        ({ time, text }) =>
-          `[${time}]${text.replace(/<-?\d+,-?\d+(?:,-?\d+)?>/g, "")}`,
+        ({ time, text }) => `[${time}]${text.replace(WORD_TIMING_REGEX, "")}`,
       ),
     ].join("\n");
-  return {
-    lyric: format(lines),
-    tlyric: translations.length ? format(translations) : "",
-    rlyric: "",
-    lxlyric: "",
-  };
+
+  const lyric = format(lines);
+  const translation = translations.length ? format(translations) : "";
+  return combineLrc(lyric, translation);
 }

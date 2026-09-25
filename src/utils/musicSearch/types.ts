@@ -11,16 +11,9 @@ export interface SearchResult {
   total: number;
 }
 
-export interface LyricInfo {
-  lyric: string;
-  tlyric?: string;
-  rlyric?: string;
-  lxlyric?: string;
-}
-
 export interface MusicProvider {
   name: string;
   search: (keyword: string, page: number) => Promise<SearchResult>;
   getCoverUrl: (id: string) => Promise<string>;
-  getLyric: (id: string) => Promise<LyricInfo | null>;
+  getLyric: (id: string) => Promise<string | null>;
 }

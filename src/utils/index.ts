@@ -30,3 +30,8 @@ export function formatSingerName(singers: any[]): string {
 }
 
 export { formatTime };
+
+export function combineLrc(lyric: string, translation: string): string {
+  if (!lyric.trim() || !translation.trim()) return lyric;
+  return `${lyric.trimEnd()}\n[by:translation]\n${translation.trim()}`;
+}

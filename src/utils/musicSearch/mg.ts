@@ -1,7 +1,7 @@
-import type { MusicProvider, SearchResult, OnlineSongInfo, LyricInfo } from "./types";
+import type { MusicProvider, SearchResult, OnlineSongInfo } from "./types";
 import { fetch } from "@tauri-apps/plugin-http";
 import { md5 } from "../crypto";
-import { formatSingerName } from "../index";
+import { formatSingerName, combineLrc } from "../index";
 
 const DEVICE_ID = "963B7AA0D21511ED807EE5846EC87D20";
 const SIGNATURE_MD5 = "6cdc72a439cef99a3418d2a78aa28c73";
@@ -123,7 +123,7 @@ export const mgProvider: MusicProvider = {
     return url;
   },
 
-  getLyric: async (id: string): Promise<LyricInfo | null> => {
+  getLyric: async (id: string): Promise<string | null> => {
     const info = await getMgSongInfo(id);
     if (!info || !info.lrcUrl) return null;
 
@@ -154,7 +154,7 @@ export const mgProvider: MusicProvider = {
         } catch { /* ignore */ }
       }
 
-      return { lyric: text, tlyric, rlyric: "", lxlyric: "" };
+      return combineLrc(text, tlyric);
     } catch {
       return null;
     }

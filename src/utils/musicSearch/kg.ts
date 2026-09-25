@@ -2,7 +2,6 @@ import type {
   MusicProvider,
   SearchResult,
   OnlineSongInfo,
-  LyricInfo,
 } from "./types";
 import { fetch } from "@tauri-apps/plugin-http";
 import { formatSingerName } from "../index";
@@ -140,7 +139,7 @@ export const kgProvider: MusicProvider = {
     return img;
   },
 
-  getLyric: async (id: string): Promise<LyricInfo | null> => {
+  getLyric: async (id: string): Promise<string | null> => {
     const searchUrl = `http://lyrics.kugou.com/search?ver=1&man=yes&client=pc&keyword=&hash=${id}&timelength=0&lrctxt=1`;
     const searchResp = await fetch(searchUrl, {
       headers: {
@@ -169,12 +168,7 @@ export const kgProvider: MusicProvider = {
     const dlData = await dlResp.json();
 
     if (fmt === "lrc" && dlData.content) {
-      return {
-        lyric: atob(dlData.content),
-        tlyric: "",
-        rlyric: "",
-        lxlyric: "",
-      };
+      return atob(dlData.content);
     }
 
     return null;

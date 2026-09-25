@@ -53,6 +53,7 @@ fn timed_lines(s: &str) -> Vec<(i64, &str)> {
     v
 }
 
+#[tauri::command]
 pub fn parse_lyrics_content(content: String) -> Option<Vec<LrcLine>> {
     if content.trim().is_empty() {
         return None;
