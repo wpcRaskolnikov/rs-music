@@ -36,7 +36,11 @@ export function base64Decode(str: string): Uint8Array {
   return bytes;
 }
 
-export function aesCbcEncrypt(plaintext: string, key: string, iv: string): string {
+export function aesCbcEncrypt(
+  plaintext: string,
+  key: string,
+  iv: string,
+): string {
   return CryptoJS.AES.encrypt(plaintext, CryptoJS.enc.Utf8.parse(key), {
     iv: CryptoJS.enc.Utf8.parse(iv),
     mode: CryptoJS.mode.CBC,
@@ -44,16 +48,13 @@ export function aesCbcEncrypt(plaintext: string, key: string, iv: string): strin
   }).toString();
 }
 
-// --- KW XOR encoding for lyric requests ---
-const KW_LYRIC_KEY = new TextEncoder().encode("yeelion");
+export function xorEncode(plain: Uint8Array, key: Uint8Array): Uint8Array {
+  return plain.map((byte, i) => byte ^ key[i % key.length]);
+}
 
-export function kwLyricParam(id: string, isLyricx = true): string {
-  let params = `user=12345,web,web,web&requester=localhost&req=1&rid=MUSIC_${id}`;
-  if (isLyricx) params += "&lrcx=1";
-  const bufStr = new TextEncoder().encode(params);
-  const output = new Uint16Array(bufStr.length);
-  for (let i = 0; i < bufStr.length; i++) {
-    output[i] = KW_LYRIC_KEY[i % KW_LYRIC_KEY.length] ^ bufStr[i];
-  }
-  return btoa(String.fromCharCode(...output));
+export async function deflateDecode(data: Uint8Array): Promise<Uint8Array> {
+  const stream = new Blob([data])
+    .stream()
+    .pipeThrough(new DecompressionStream("deflate"));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
 }
