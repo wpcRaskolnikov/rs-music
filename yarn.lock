@@ -1218,7 +1218,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tauri-apps/api@npm:^2.12.0, @tauri-apps/api@npm:~2.12.0":
+"@tauri-apps/api@npm:^2.12.0":
   version: 2.12.0
   resolution: "@tauri-apps/api@npm:2.12.0"
   checksum: 10c0/3bcf726e74a96b1dfc7f04bac9dc4c30808ff8fc68bc501e9b2a92ee15674b89276637b69bc42d5f61f1aaa2c98aa9b6134d7bdabbf9b320d3a6504e1216b2ef
@@ -1382,7 +1382,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tauri-apps/plugin-process@npm:~2":
+"@tauri-apps/plugin-process@npm:^2":
   version: 2.4.0
   resolution: "@tauri-apps/plugin-process@npm:2.4.0"
   dependencies:
@@ -1409,7 +1409,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tauri-apps/plugin-updater@npm:~2.13.0":
+"@tauri-apps/plugin-updater@npm:^2.13.0":
   version: 2.13.0
   resolution: "@tauri-apps/plugin-updater@npm:2.13.0"
   dependencies:
@@ -3006,16 +3006,16 @@ __metadata:
     "@mui/material": "npm:^7.3.2"
     "@tanstack/react-query": "npm:^5.100.7"
     "@tanstack/react-virtual": "npm:^3.13.23"
-    "@tauri-apps/api": "npm:~2.12.0"
+    "@tauri-apps/api": "npm:^2.12.0"
     "@tauri-apps/cli": "npm:^2"
     "@tauri-apps/plugin-dialog": "npm:^2.6.0"
     "@tauri-apps/plugin-fs": "npm:~2"
     "@tauri-apps/plugin-http": "npm:~2"
     "@tauri-apps/plugin-opener": "npm:^2"
-    "@tauri-apps/plugin-process": "npm:~2"
+    "@tauri-apps/plugin-process": "npm:^2"
     "@tauri-apps/plugin-sql": "npm:~2"
     "@tauri-apps/plugin-store": "npm:~2"
-    "@tauri-apps/plugin-updater": "npm:~2.13.0"
+    "@tauri-apps/plugin-updater": "npm:^2.13.0"
     "@types/crypto-js": "npm:^4"
     "@types/react": "npm:^19.1.8"
     "@types/react-dom": "npm:^19.1.6"
