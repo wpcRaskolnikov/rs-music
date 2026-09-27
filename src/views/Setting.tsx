@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Box, Button, Typography, Divider } from "@mui/material";
 import { getVersion } from "@tauri-apps/api/app";
 import { ShortcutSection, UserApiPanel } from "../components";
+import UpdateSection from "../components/settings/UpdateSection";
 
 const Setting: React.FC = () => {
   const [version, setVersion] = useState("");
@@ -30,9 +31,8 @@ const Setting: React.FC = () => {
           导出设置
         </Button>
       </Box>
-      <Typography variant="caption" color="text.secondary">
-        rs-music v{version}
-      </Typography>
+      <Divider sx={{ mt: 2, mb: 2 }} />
+      <UpdateSection version={version} />
     </Box>
   );
 };

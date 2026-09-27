@@ -72,10 +72,13 @@ pub async fn start_download(
 
     tokio::spawn(async move {
         let emit = |status: DownloadStatus| {
-            let _ = app.emit("download-status-update", serde_json::json!({
-                "id": id,
-                "status": status
-            }));
+            let _ = app.emit(
+                "download-status-update",
+                serde_json::json!({
+                    "id": id,
+                    "status": status
+                }),
+            );
         };
 
         emit(DownloadStatus::Ready);

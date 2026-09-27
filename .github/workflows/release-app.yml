@@ -53,6 +53,7 @@ jobs:
       - uses: tauri-apps/tauri-action@850c373b94f35e16e4de61cbb9f6e4876af8c0b4
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
         with:
           projectPath: ./
           tagName: ${{ github.ref_name }}

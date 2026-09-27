@@ -39,6 +39,8 @@ anyhow = "1.0.104"
 reqwest = { version = "0.13.4", features = ["json", "stream", "blocking"] }
 futures-util = "0.3.34"
 rquickjs = { version = "0.12.2", features = ["futures", "macro", "parallel"] }
+tauri-plugin-process = "2"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-single-instance = "2"
+tauri-plugin-updater = "2"
