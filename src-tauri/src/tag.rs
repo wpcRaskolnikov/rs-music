@@ -9,6 +9,26 @@ use lofty::tag::{Tag, TagExt};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
+pub fn embed_lyrics(path: &Path, lyrics: &str) -> anyhow::Result<()> {
+    // 缺失歌词时保留文件原有的歌词标签。
+    if lyrics.trim().is_empty() {
+        return Ok(());
+    }
+    let mut audio = Probe::open(path)?.guess_file_type()?.read()?;
+    let tag_type = audio.primary_tag_type();
+    if audio.primary_tag().is_none() {
+        audio.insert_tag(Tag::new(tag_type));
+    }
+    let tag = audio.primary_tag_mut().unwrap();
+    // Lofty 将 Lyrics 映射到 MP3 USLT / FLAC Vorbis LYRICS，保留 LRC 时间戳。
+    anyhow::ensure!(
+        tag.insert_text(ItemKey::Lyrics, lyrics.to_owned()),
+        "音频格式不支持内嵌歌词"
+    );
+    tag.save_to_path(path, WriteOptions::default())?;
+    Ok(())
+}
+
 pub fn embed_album_cover(path: &Path, bytes: &[u8]) -> anyhow::Result<()> {
     let mut picture = Picture::from_reader(&mut std::io::Cursor::new(bytes))?;
     picture.set_pic_type(PictureType::CoverFront);

@@ -99,6 +99,7 @@ pub async fn start_download(
     url: String,
     save_path: String,
     cover_url: Option<String>,
+    lyrics: Option<String>,
 ) -> Result<(), String> {
     let db = db.inner().clone();
 
@@ -128,6 +129,16 @@ pub async fn start_download(
                 res = &mut download_fut => {
                     match res {
                         Ok(()) => {
+                            if let Some(lyrics) = lyrics.clone() {
+                                let path = save_path.clone();
+                                match tokio::task::spawn_blocking(move || {
+                                    crate::tag::embed_lyrics(Path::new(&path), &lyrics)
+                                }).await {
+                                    Ok(Ok(())) => {}
+                                    Ok(Err(error)) => eprintln!("[download] Lyrics processing failed: {error}"),
+                                    Err(error) => eprintln!("[download] Lyrics task failed: {error}"),
+                                }
+                            }
                             if let Err(error) = embed_cover(save_path.clone(), cover_url.clone()).await {
                                 eprintln!("[download] Cover processing failed: {error}");
                             }

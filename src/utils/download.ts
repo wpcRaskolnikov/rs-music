@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { getDefaultStore } from "jotai";
 import { db, downloadsAtom, type DownloadTask } from "../store";
 
-import { getCoverUrl, type Source, type OnlineSongInfo } from "./musicSearch";
+import { getCoverUrl, getLyric, type Source, type OnlineSongInfo } from "./musicSearch";
 import { withTimeout } from ".";
 
 export type Quality = "128k" | "192k" | "320k" | "flac" | "flac24bit";
@@ -56,16 +56,17 @@ export async function downloadSong(
   };
   getDefaultStore().set(downloadsAtom, (prev) => [task, ...prev]);
 
-  const coverUrl = await withTimeout(
-    getCoverUrl(song.src as Source, song.id).catch(() => null),
-    15_000,
-  );
+  const [coverUrl, lyrics] = await Promise.all([
+    withTimeout(getCoverUrl(song.src as Source, song.id).catch(() => null), 15_000),
+    withTimeout(getLyric(song.src as Source, song.id).catch(() => null), 15_000),
+  ]);
 
   await invoke("start_download", {
     id,
     url,
     savePath,
     coverUrl,
+    lyrics,
   });
   return id;
 }
