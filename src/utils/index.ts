@@ -35,3 +35,15 @@ export function combineLrc(lyric: string, translation: string): string {
   if (!lyric.trim() || !translation.trim()) return lyric;
   return `${lyric.trimEnd()}\n[by:translation]\n${translation.trim()}`;
 }
+
+export async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  let timer: ReturnType<typeof setTimeout>;
+
+  const timeoutPromise = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), ms);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    clearTimeout(timer);
+  });
+}

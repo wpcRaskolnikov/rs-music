@@ -1,10 +1,33 @@
 use base64::{Engine as _, engine::general_purpose};
+use lofty::config::WriteOptions;
 use lofty::file::TaggedFileExt;
+use lofty::picture::{Picture, PictureType};
 use lofty::prelude::*;
 use lofty::probe::Probe;
 use lofty::read_from_path;
+use lofty::tag::{Tag, TagExt};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
+
+pub fn embed_album_cover(path: &Path, bytes: &[u8]) -> anyhow::Result<()> {
+    let mut picture = Picture::from_reader(&mut std::io::Cursor::new(bytes))?;
+    picture.set_pic_type(PictureType::CoverFront);
+
+    let mut audio = Probe::open(path)?.guess_file_type()?.read()?;
+    let tag = match audio.primary_tag_mut() {
+        Some(t) => t,
+        None => {
+            audio.insert_tag(Tag::new(audio.primary_tag_type()));
+            audio.primary_tag_mut().unwrap()
+        }
+    };
+
+    tag.remove_picture_type(PictureType::CoverFront);
+    tag.push_picture(picture);
+    tag.save_to_path(path, WriteOptions::default())?;
+
+    Ok(())
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct MusicMetadata {

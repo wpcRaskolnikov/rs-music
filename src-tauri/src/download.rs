@@ -18,12 +18,12 @@ pub enum DownloadStatus {
     Error(String),
 }
 
-async fn do_download(
+async fn download_song(
     url: &str,
     save_path: &str,
     progress_tx: Option<mpsc::Sender<u8>>,
 ) -> Result<()> {
-    let resp = reqwest::get(url).await?;
+    let resp = reqwest::get(url).await?.error_for_status()?;
 
     let is_text = resp
         .headers()
@@ -58,6 +58,39 @@ async fn do_download(
     Ok(())
 }
 
+async fn download_cover(url: &str) -> Result<Vec<u8>> {
+    const MAX_SIZE: usize = 10 * 1024 * 1024;
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("failed to build HTTP client");
+    let response = client.get(url).send().await?.error_for_status()?;
+    anyhow::ensure!(
+        response.content_length().unwrap_or(0) <= MAX_SIZE as u64,
+        "封面超过 10 MB"
+    );
+    let mut stream = response.bytes_stream();
+    let mut bytes = Vec::new();
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk?;
+        anyhow::ensure!(bytes.len() + chunk.len() <= MAX_SIZE, "封面超过 10 MB");
+        bytes.extend_from_slice(&chunk);
+    }
+    Ok(bytes)
+}
+
+async fn embed_cover(save_path: String, cover_url: Option<String>) -> Result<()> {
+    let url = cover_url.ok_or_else(|| anyhow::anyhow!("未获取到封面地址"))?;
+    let bytes = download_cover(&url).await?;
+
+    tokio::task::spawn_blocking(move || {
+        crate::tag::embed_album_cover(Path::new(&save_path), &bytes)
+    })
+    .await??;
+
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn start_download(
     app: tauri::AppHandle,
@@ -65,6 +98,7 @@ pub async fn start_download(
     id: String,
     url: String,
     save_path: String,
+    cover_url: Option<String>,
 ) -> Result<(), String> {
     let db = db.inner().clone();
 
@@ -83,7 +117,7 @@ pub async fn start_download(
 
         emit(DownloadStatus::Ready);
 
-        let download_fut = do_download(&url, &save_path, Some(progress_tx));
+        let download_fut = download_song(&url, &save_path, Some(progress_tx));
         tokio::pin!(download_fut);
 
         loop {
@@ -94,6 +128,9 @@ pub async fn start_download(
                 res = &mut download_fut => {
                     match res {
                         Ok(()) => {
+                            if let Err(error) = embed_cover(save_path.clone(), cover_url.clone()).await {
+                                eprintln!("[download] Cover processing failed: {error}");
+                            }
                             let _ = sqlx::query(
                                 "UPDATE downloads SET status = 'completed', updated_at = datetime('now') WHERE id = ?",
                             )
