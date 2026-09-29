@@ -8,9 +8,6 @@ pub struct StreamReader {
     pos: u64,
     length: u64,
     response: Response,
-    buffer: Vec<u8>,
-    buffer_start: u64,
-    chunk_size: usize,
 }
 
 impl StreamReader {
@@ -24,7 +21,6 @@ impl StreamReader {
             .error_for_status()
             .expect("音频 URL 请求失败");
         let length = response.content_length().unwrap_or(0);
-        let chunk_size = 512 * 1024; // 512KB
 
         Self {
             client,
@@ -32,45 +28,48 @@ impl StreamReader {
             pos: 0,
             length,
             response,
-            buffer: Vec::with_capacity(chunk_size),
-            buffer_start: 0,
-            chunk_size: chunk_size,
         }
     }
 
     pub fn byte_len(&self) -> u64 {
         self.length
     }
+
+    fn request_range(&self, start: u64) -> io::Result<Response> {
+        self.client
+            .get(&self.url)
+            .header(RANGE, format!("bytes={start}-"))
+            .send()
+            .map_err(io::Error::other)?
+            .error_for_status()
+            .map_err(io::Error::other)
+    }
 }
 
 impl Read for StreamReader {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        const MAX_RETRIES: usize = 3;
+
         if buf.is_empty() {
             return Ok(0);
         }
 
-        if self.pos >= self.buffer_start + self.buffer.len() as u64 {
-            self.buffer_start = self.pos;
-            self.buffer.clear();
-            let total_fetched = self
-                .response
-                .by_ref()
-                .take(self.chunk_size as u64)
-                .read_to_end(&mut self.buffer)?;
-
-            if total_fetched == 0 {
-                return Ok(0);
+        for _ in 0..MAX_RETRIES {
+            match self.response.read(buf) {
+                Ok(0) if self.length > 0 && self.pos < self.length => {
+                    self.response = self.request_range(self.pos)?;
+                }
+                Ok(read) => {
+                    self.pos += read as u64;
+                    return Ok(read);
+                }
+                Err(_) => self.response = self.request_range(self.pos)?,
             }
         }
 
-        let offset = (self.pos - self.buffer_start) as usize;
-        let available = &self.buffer[offset..];
-
-        let copy_len = std::cmp::min(available.len(), buf.len());
-        buf[..copy_len].copy_from_slice(&available[..copy_len]);
-        self.pos += copy_len as u64;
-
-        Ok(copy_len)
+        let read = self.response.read(buf)?;
+        self.pos += read as u64;
+        Ok(read)
     }
 }
 
@@ -90,23 +89,8 @@ impl Seek for StreamReader {
         }
 
         let new_pos = new_pos as u64;
-        let is_cached =
-            new_pos >= self.buffer_start && new_pos < self.buffer_start + self.buffer.len() as u64;
-
-        // 未命中缓存，并且确实发生了位移
-        if !is_cached && new_pos != self.pos {
-            let response = self
-                .client
-                .get(&self.url)
-                .header(RANGE, format!("bytes={}-", new_pos))
-                .send()
-                .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?
-                .error_for_status()
-                .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
-
-            self.response = response;
-            self.buffer.clear();
-            self.buffer_start = new_pos;
+        if new_pos != self.pos {
+            self.response = self.request_range(new_pos)?;
         }
 
         self.pos = new_pos;

@@ -67,6 +67,13 @@ export async function downloadSong(
     savePath,
     coverUrl,
     lyrics,
+    musicMetadata: {
+      src: song.src,
+      title: song.title,
+      artist: song.artist,
+      album: song.album,
+      duration: song.duration,
+    },
   });
   return id;
 }

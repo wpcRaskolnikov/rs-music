@@ -1,5 +1,6 @@
 use crate::db::Db;
 use crate::progress::Progress;
+use crate::tag::MusicMetadata;
 use anyhow::Result;
 use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
@@ -79,18 +80,6 @@ async fn download_cover(url: &str) -> Result<Vec<u8>> {
     Ok(bytes)
 }
 
-async fn embed_cover(save_path: String, cover_url: Option<String>) -> Result<()> {
-    let url = cover_url.ok_or_else(|| anyhow::anyhow!("未获取到封面地址"))?;
-    let bytes = download_cover(&url).await?;
-
-    tokio::task::spawn_blocking(move || {
-        crate::tag::embed_album_cover(Path::new(&save_path), &bytes)
-    })
-    .await??;
-
-    Ok(())
-}
-
 #[tauri::command]
 pub async fn start_download(
     app: tauri::AppHandle,
@@ -100,6 +89,7 @@ pub async fn start_download(
     save_path: String,
     cover_url: Option<String>,
     lyrics: Option<String>,
+    music_metadata: MusicMetadata,
 ) -> Result<(), String> {
     let db = db.inner().clone();
 
@@ -129,18 +119,31 @@ pub async fn start_download(
                 res = &mut download_fut => {
                     match res {
                         Ok(()) => {
-                            if let Some(lyrics) = lyrics.clone() {
-                                let path = save_path.clone();
-                                match tokio::task::spawn_blocking(move || {
-                                    crate::tag::embed_lyrics(Path::new(&path), &lyrics)
-                                }).await {
-                                    Ok(Ok(())) => {}
-                                    Ok(Err(error)) => eprintln!("[download] Lyrics processing failed: {error}"),
-                                    Err(error) => eprintln!("[download] Lyrics task failed: {error}"),
+                            let cover = if let Some(url) = cover_url.as_deref() {
+                                match download_cover(url).await {
+                                    Ok(bytes) => Some(bytes),
+                                    Err(error) => {
+                                        eprintln!("[download] Cover download failed: {error}");
+                                        None
+                                    }
                                 }
-                            }
-                            if let Err(error) = embed_cover(save_path.clone(), cover_url.clone()).await {
-                                eprintln!("[download] Cover processing failed: {error}");
+                            } else {
+                                None
+                            };
+                            let path = save_path.clone();
+                            match tokio::task::spawn_blocking(move || {
+                                crate::tag::embed_download_metadata(
+                                    Path::new(&path),
+                                    &music_metadata,
+                                    lyrics.as_deref(),
+                                    cover.as_deref(),
+                                )
+                            })
+                            .await
+                            {
+                                Ok(Ok(())) => {}
+                                Ok(Err(error)) => eprintln!("[download] Metadata processing failed: {error}"),
+                                Err(error) => eprintln!("[download] Metadata task failed: {error}"),
                             }
                             let _ = sqlx::query(
                                 "UPDATE downloads SET status = 'completed', updated_at = datetime('now') WHERE id = ?",

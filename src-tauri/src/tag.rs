@@ -9,43 +9,42 @@ use lofty::tag::{Tag, TagExt};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-pub fn embed_lyrics(path: &Path, lyrics: &str) -> anyhow::Result<()> {
-    // 缺失歌词时保留文件原有的歌词标签。
-    if lyrics.trim().is_empty() {
-        return Ok(());
-    }
+pub fn embed_download_metadata(
+    path: &Path,
+    metadata: &MusicMetadata,
+    lyrics: Option<&str>,
+    cover: Option<&[u8]>,
+) -> anyhow::Result<()> {
     let mut audio = Probe::open(path)?.guess_file_type()?.read()?;
     let tag_type = audio.primary_tag_type();
     if audio.primary_tag().is_none() {
         audio.insert_tag(Tag::new(tag_type));
     }
     let tag = audio.primary_tag_mut().unwrap();
-    // Lofty 将 Lyrics 映射到 MP3 USLT / FLAC Vorbis LYRICS，保留 LRC 时间戳。
-    anyhow::ensure!(
-        tag.insert_text(ItemKey::Lyrics, lyrics.to_owned()),
-        "音频格式不支持内嵌歌词"
-    );
+
+    if !metadata.title.trim().is_empty() {
+        tag.set_title(metadata.title.clone());
+    }
+    if !metadata.artist.trim().is_empty() {
+        tag.set_artist(metadata.artist.clone());
+    }
+    if !metadata.album.trim().is_empty() {
+        tag.set_album(metadata.album.clone());
+    }
+    if let Some(lyrics) = lyrics.filter(|lyrics| !lyrics.trim().is_empty()) {
+        anyhow::ensure!(
+            tag.insert_text(ItemKey::Lyrics, lyrics.to_owned()),
+            "音频格式不支持内嵌歌词"
+        );
+    }
+    if let Some(bytes) = cover {
+        let mut picture = Picture::from_reader(&mut std::io::Cursor::new(bytes))?;
+        picture.set_pic_type(PictureType::CoverFront);
+        tag.remove_picture_type(PictureType::CoverFront);
+        tag.push_picture(picture);
+    }
+
     tag.save_to_path(path, WriteOptions::default())?;
-    Ok(())
-}
-
-pub fn embed_album_cover(path: &Path, bytes: &[u8]) -> anyhow::Result<()> {
-    let mut picture = Picture::from_reader(&mut std::io::Cursor::new(bytes))?;
-    picture.set_pic_type(PictureType::CoverFront);
-
-    let mut audio = Probe::open(path)?.guess_file_type()?.read()?;
-    let tag = match audio.primary_tag_mut() {
-        Some(t) => t,
-        None => {
-            audio.insert_tag(Tag::new(audio.primary_tag_type()));
-            audio.primary_tag_mut().unwrap()
-        }
-    };
-
-    tag.remove_picture_type(PictureType::CoverFront);
-    tag.push_picture(picture);
-    tag.save_to_path(path, WriteOptions::default())?;
-
     Ok(())
 }
 
