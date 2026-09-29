@@ -77,7 +77,8 @@ enum MusicCommand {
     SetPlayMode(PlayMode),
     PlayNext,
     PlayPrev,
-    Move(usize, usize),
+    Move(String, usize, usize),
+    RefreshPlaylist(String),
     PlayOnline(String),
 }
 
@@ -146,22 +147,22 @@ fn play_at(app: &tauri::AppHandle, sink: &rodio::Sink, entry: PlaylistEntry) {
     sink.append(EmptyCallback::new(Box::new(play_next)));
 }
 
-fn play_url(sink: &rodio::Sink, url: &str) {
-    sink.clear();
-    let reader = StreamReader::new(url);
+fn play_url(sink: &rodio::Sink, url: &str) -> Result<(), String> {
+    let reader = StreamReader::new(url).map_err(|error| error.to_string())?;
     let byte_len = reader.byte_len();
-    match rodio::Decoder::builder()
+    let decoder = rodio::Decoder::builder()
         .with_data(reader)
         .with_byte_len(byte_len)
         .with_seekable(true)
         .with_gapless(true)
         .build()
-    {
-        Err(e) => eprintln!("网络音频解码失败: {}", e),
-        Ok(decoder) => sink.append(decoder),
-    }
+        .map_err(|error| error.to_string())?;
+
+    sink.clear();
+    sink.append(decoder);
     sink.append(EmptyCallback::new(Box::new(play_next)));
     sink.play();
+    Ok(())
 }
 
 // 启动管理线程
@@ -267,30 +268,77 @@ pub fn init_music_thread(app: tauri::AppHandle) {
                         play_at(&app, &sink, playlist.current_entry());
                     }
                 }
-                MusicCommand::Move(from, to) => {
-                    let playing_src = playlist.tracks[playlist.current_index].src.clone();
-                    if from < to {
-                        playlist.tracks[from..=to].rotate_left(1);
-                    } else if from > to {
-                        playlist.tracks[to..=from].rotate_right(1);
+                MusicCommand::Move(playlist_id, from, to) => {
+                    if playlist_id == playlist.id
+                        && playlist.current_index < playlist.tracks.len()
+                        && from < playlist.tracks.len()
+                        && to < playlist.tracks.len()
+                    {
+                        let playing_src = playlist.tracks[playlist.current_index].src.clone();
+                        if from < to {
+                            playlist.tracks[from..=to].rotate_left(1);
+                        } else if from > to {
+                            playlist.tracks[to..=from].rotate_right(1);
+                        }
+                        playlist.current_index = playlist
+                            .tracks
+                            .iter()
+                            .position(|m| m.src == playing_src)
+                            .unwrap_or(playlist.current_index);
                     }
-                    playlist.current_index = playlist
+                }
+                MusicCommand::RefreshPlaylist(playlist_id) => {
+                    if playlist_id != playlist.id {
+                        continue;
+                    }
+                    let old_index = playlist.current_index;
+                    let playing_src = playlist
                         .tracks
-                        .iter()
-                        .position(|m| m.src == playing_src)
-                        .unwrap_or(playlist.current_index);
+                        .get(old_index)
+                        .map(|music| music.src.clone());
+                    let songs = rt
+                        .block_on(
+                            sqlx::query_as::<_, MusicMetadata>(
+                                "SELECT src, title, artist, album, duration FROM music WHERE playlist_id = ? ORDER BY sort_order",
+                            )
+                            .bind(&playlist_id)
+                            .fetch_all(&*db),
+                        )
+                        .unwrap_or_default();
+
+                    if let Some(index) = playing_src
+                        .as_ref()
+                        .and_then(|src| songs.iter().position(|music| &music.src == src))
+                    {
+                        playlist.tracks = songs;
+                        playlist.current_index = index;
+                        if let Ok(store) = app.store("last_played.json") {
+                            let _ = store.set("index", index);
+                        }
+                    } else if songs.is_empty() {
+                        playlist.tracks = songs;
+                        playlist.current_index = 0;
+                        sink.stop();
+                        app.emit("playlist-cleared", playlist_id).ok();
+                    } else {
+                        playlist.tracks = songs;
+                        playlist.current_index = old_index.min(playlist.tracks.len() - 1);
+                        play_at(&app, &sink, playlist.current_entry());
+                    }
                 }
                 MusicCommand::PlayOnline(url) => {
-                    play_url(&sink, &url);
+                    if let Err(error) = play_url(&sink, &url) {
+                        eprintln!("网络音频播放失败: {error}");
+                    }
                 }
             }
         }
     });
 }
 
-pub fn move_playlist(from: usize, to: usize) {
+pub fn move_playlist(playlist_id: &str, from: usize, to: usize) {
     if let Some(tx) = MUSIC_TX.get() {
-        let _ = tx.send(MusicCommand::Move(from, to));
+        let _ = tx.send(MusicCommand::Move(playlist_id.to_string(), from, to));
     }
 }
 
@@ -355,6 +403,13 @@ pub fn play_next() {
 pub fn play_prev() {
     if let Some(tx) = MUSIC_TX.get() {
         let _ = tx.send(MusicCommand::PlayPrev);
+    }
+}
+
+#[tauri::command]
+pub fn refresh_playlist(playlist_id: String) {
+    if let Some(tx) = MUSIC_TX.get() {
+        let _ = tx.send(MusicCommand::RefreshPlaylist(playlist_id));
     }
 }
 

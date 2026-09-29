@@ -1,29 +1,50 @@
 # rs-music
 
-A fast and lightweight cross-platform local music player built with Tauri, React.
+一个基于 **Tauri、Rust 和 React** 构建的轻量级跨平台桌面音乐播放器。
 
-## Development Setup
+## 功能特性
 
-### Recommended IDE Setup
+### 本地音乐
 
-* [VS Code](https://code.visualstudio.com/)
-* [Tauri VS Code Extension](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode)
-* [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+- 创建、重命名和管理多个播放列表
+- 导入单个音乐文件或递归导入音乐文件夹
+- 支持 MP3、FLAC、WAV 等常见音频格式
+- 自动读取歌曲标题、歌手、专辑、时长和封面
+- 支持播放列表拖拽排序和歌曲移除
+- 支持本地曲库搜索
+- 自动恢复上次播放的歌曲
 
-### Install Dependencies
+### 音乐播放
 
-```bash
-yarn   
-```
+- 播放、暂停、上一首和下一首
+- 列表循环、随机播放和单曲循环
+- 播放进度跳转与音量控制
+- 自定义播放快捷键
+- 专辑封面展示
+- 系统托盘与单实例运行
 
-### Run in Development
+### 歌词
 
-```bash
-yarn tauri dev
-```
+- 读取本地音乐内嵌歌词
+- 获取在线歌曲歌词
+- 支持翻译歌词合并展示
+- 当前歌词高亮与自动滚动
 
-### Build Release
+### 桌面应用
 
-```bash
-yarn tauri build
-```
+- 支持 Windows、macOS 和 Linux
+- 支持应用内检查更新
+- 基于 SQLite 保存播放列表、歌曲索引和下载任务
+- 使用虚拟列表优化大型播放列表的渲染性能
+
+## 下载
+
+可以在项目的 [GitHub Releases](https://github.com/wpcRaskolnikov/rs-music/releases) 页面获取已发布版本。
+
+## 说明
+
+rs-music 本身不提供或存储在线音乐服务。在线搜索、试听和下载功能依赖第三方平台及用户导入的音源脚本，请在遵守所在地法律法规和相关服务条款的前提下使用。
+
+## License
+
+本项目基于 [MIT License](LICENSE) 开源。

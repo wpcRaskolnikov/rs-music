@@ -11,6 +11,7 @@ import {
   isPlayingAtom,
   currentTrackIndexAtom,
   currentPlaylistAtom,
+  currentTimeAtom,
   selectedPlaylistIdAtom,
 } from "../store";
 
@@ -21,6 +22,7 @@ const SongList: React.FC = () => {
   );
   const [localSongList, setLocalSongList] = useState<MusicMetadata[]>([]);
   const setIsPlaying = useSetAtom(isPlayingAtom);
+  const setCurrentTime = useSetAtom(currentTimeAtom);
   const [currentTrackIndex, setCurrentTrackIndex] = useAtom(
     currentTrackIndexAtom,
   );
@@ -67,9 +69,7 @@ const SongList: React.FC = () => {
   };
 
   const handlePlay = (index: number) => {
-    if (selectedPlaylistId !== currentPlaylist.playlistId) {
-      setCurrentPlaylist({ playlistId: selectedPlaylistId, songs: songList });
-    }
+    setCurrentPlaylist({ playlistId: selectedPlaylistId, songs: songList });
     setIsPlaying(true);
     invoke("play_music", { playlistId: selectedPlaylistId, index });
   };
@@ -82,15 +82,21 @@ const SongList: React.FC = () => {
     const newList = songList.filter((_, i) => i !== index);
     if (selectedPlaylistId === currentPlaylist.playlistId) {
       setCurrentPlaylist({ playlistId: selectedPlaylistId, songs: newList });
-      if (index < currentTrackIndex) {
-        const newIndex = currentTrackIndex - 1;
-        setCurrentTrackIndex(newIndex);
-        const store = await load("last_played.json");
-        await store.set("index", newIndex);
+      if (index === currentTrackIndex) {
+        if (newList.length === 0) {
+          setCurrentTrackIndex(-1);
+          setCurrentTime(0);
+          setIsPlaying(false);
+        } else {
+          setCurrentTrackIndex(Math.min(index, newList.length - 1));
+        }
+      } else if (index < currentTrackIndex) {
+        setCurrentTrackIndex(currentTrackIndex - 1);
       }
     } else {
       setLocalSongList(newList);
     }
+    await invoke("refresh_playlist", { playlistId: selectedPlaylistId });
   };
 
   useEffect(() => {

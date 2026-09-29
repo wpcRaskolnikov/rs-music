@@ -12,8 +12,13 @@ import HeadphonesIcon from "@mui/icons-material/Headphones";
 import { invoke } from "@tauri-apps/api/core";
 import { useAtomValue, useSetAtom } from "jotai";
 
-import { db, isPlayingAtom, searchQueryAtom } from "../../store";
-import { formatTime } from "../../utils";
+import {
+  currentPlaylistAtom,
+  db,
+  isPlayingAtom,
+  searchQueryAtom,
+} from "../../store";
+import { formatTime, useDebouncedValue } from "../../utils";
 import { EmptyText } from "../../components";
 import type { MusicMetadata } from "../../store";
 
@@ -24,17 +29,24 @@ interface Song extends MusicMetadata {
 
 export default function LocalTable() {
   const query = useAtomValue(searchQueryAtom);
+  const cleanQuery = query.trim();
+  const debouncedQuery = useDebouncedValue(cleanQuery, 500);
+  const isDebouncing = cleanQuery !== debouncedQuery;
   const setIsPlaying = useSetAtom(isPlayingAtom);
+  const setCurrentPlaylist = useSetAtom(currentPlaylistAtom);
   const [results, setResults] = useState<Song[]>([]);
   const [isFetching, setIsFetching] = useState(false);
 
   useEffect(() => {
-    if (!query.trim()) {
+    let active = true;
+    if (!debouncedQuery) {
       setResults([]);
+      setIsFetching(false);
       return;
     }
+
     setIsFetching(true);
-    const keyword = `%${query.trim()}%`;
+    const keyword = `%${debouncedQuery}%`;
     (async () => {
       try {
         const rows = await db.select<Song[]>(
@@ -46,33 +58,41 @@ export default function LocalTable() {
            ORDER BY m.title`,
           [keyword, keyword, keyword],
         );
-        setResults(rows);
+        if (active) setResults(rows);
       } finally {
-        setIsFetching(false);
+        if (active) setIsFetching(false);
       }
     })();
-  }, [query]);
+
+    return () => {
+      active = false;
+    };
+  }, [debouncedQuery]);
 
   const handlePlay = async (result: Song) => {
-    const rows = await db.select<{ idx: number }[]>(
-      "SELECT idx FROM (SELECT src, ROW_NUMBER() OVER (ORDER BY sort_order) - 1 AS idx FROM music WHERE playlist_id = ?) WHERE src = ?",
-      [result.playlist_id, result.src],
+    const songs = await db.select<MusicMetadata[]>(
+      "SELECT src, title, artist, album, duration FROM music WHERE playlist_id = ? ORDER BY sort_order",
+      [result.playlist_id],
     );
-    if (rows.length > 0) {
-      setIsPlaying(true);
-      invoke("play_music", {
-        playlistId: result.playlist_id,
-        index: rows[0].idx,
-      });
-    }
+    const index = songs.findIndex((song) => song.src === result.src);
+    if (index < 0) return;
+
+    setCurrentPlaylist({ playlistId: result.playlist_id, songs });
+    setIsPlaying(true);
+    await invoke("play_music", {
+      playlistId: result.playlist_id,
+      index,
+    });
   };
 
-  if (!query.trim()) {
+  const isStale = isDebouncing || isFetching;
+
+  if (!cleanQuery) {
     return <EmptyText text="输入关键词搜索本地歌曲" />;
   }
 
-  if (isFetching || results.length === 0) {
-    return <EmptyText text={isFetching ? "搜索中..." : "无搜索结果"} />;
+  if (results.length === 0) {
+    return <EmptyText text={isStale ? "搜索中..." : "无搜索结果"} />;
   }
 
   return (
@@ -80,8 +100,8 @@ export default function LocalTable() {
       size="small"
       stickyHeader
       sx={{
-        opacity: isFetching ? 0.5 : 1,
-        pointerEvents: isFetching ? "none" : "auto",
+        opacity: isStale ? 0.5 : 1,
+        pointerEvents: isStale ? "none" : "auto",
       }}
     >
       <TableHead>

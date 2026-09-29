@@ -1,6 +1,7 @@
 use reqwest::blocking::{Client, Response};
 use reqwest::header::RANGE;
 use std::io::{self, Read, Seek, SeekFrom};
+use std::time::Duration;
 
 pub struct StreamReader {
     client: Client,
@@ -11,24 +12,27 @@ pub struct StreamReader {
 }
 
 impl StreamReader {
-    pub fn new(url: &str) -> Self {
-        let client = Client::new();
+    pub fn new(url: &str) -> io::Result<Self> {
+        let client = Client::builder()
+            .connect_timeout(Duration::from_secs(5))
+            .build()
+            .map_err(io::Error::other)?;
         let response = client
             .get(url)
             .header(RANGE, "bytes=0-")
             .send()
-            .expect("无法请求音频 URL")
+            .map_err(io::Error::other)?
             .error_for_status()
-            .expect("音频 URL 请求失败");
+            .map_err(io::Error::other)?;
         let length = response.content_length().unwrap_or(0);
 
-        Self {
+        Ok(Self {
             client,
             url: url.to_string(),
             pos: 0,
             length,
             response,
-        }
+        })
     }
 
     pub fn byte_len(&self) -> u64 {

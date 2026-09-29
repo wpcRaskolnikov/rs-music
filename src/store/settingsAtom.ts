@@ -9,7 +9,7 @@ function atomWithSettings<T>(key: string, initialValue: T) {
 
   (async () => {
     const stored = await settingsStore.get<T>(key);
-    if (stored) {
+    if (stored !== null && stored !== undefined) {
       getDefaultStore().set(base, stored);
     }
   })();

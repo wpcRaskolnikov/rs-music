@@ -41,7 +41,13 @@ pub async fn add_music_files(
 ) -> Result<(), String> {
     for file_str in path {
         println!("Found file: {}", file_str);
-        let music_metadata = tag::parse_music_metadata(&file_str);
+        let music_metadata = match tag::parse_music_metadata(&file_str) {
+            Ok(metadata) => metadata,
+            Err(error) => {
+                eprintln!("跳过无法解析的音乐文件 {file_str}: {error}");
+                continue;
+            }
+        };
         sqlx::query(
             "INSERT INTO music (src, title, artist, album, duration, playlist_id, sort_order) \
              VALUES (?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM music WHERE playlist_id = ?)) \
@@ -73,7 +79,13 @@ pub async fn add_music_folder(
             let path = entry.expect("Failed to match");
             let file_str = path.to_string_lossy().to_string();
             println!("Found file: {}", file_str);
-            let music_metadata = tag::parse_music_metadata(&file_str);
+            let music_metadata = match tag::parse_music_metadata(&file_str) {
+                Ok(metadata) => metadata,
+                Err(error) => {
+                    eprintln!("跳过无法解析的音乐文件 {file_str}: {error}");
+                    continue;
+                }
+            };
 
             sqlx::query(
                 "INSERT INTO music (src, title, artist, album, duration, playlist_id, sort_order) \
@@ -125,7 +137,7 @@ pub async fn move_music(
     .await
     .map_err(|e| e.to_string())?;
 
-    crate::music::move_playlist(from, to);
+    crate::music::move_playlist(&playlist_id, from, to);
     Ok(())
 }
 

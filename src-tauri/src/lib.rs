@@ -50,6 +50,7 @@ pub fn run() {
             music::set_play_mode,
             music::play_next,
             music::play_prev,
+            music::refresh_playlist,
             db::add_music_files,
             db::add_music_folder,
             db::move_music,

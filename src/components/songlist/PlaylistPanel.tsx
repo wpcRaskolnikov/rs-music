@@ -123,6 +123,7 @@ const PlaylistPanel: React.FC = () => {
     await db.execute("DELETE FROM music WHERE playlist_id = ?", [
       menu.playlistId,
     ]);
+    await invoke("refresh_playlist", { playlistId: menu.playlistId });
     const newMenus = menus.filter((p) => p.playlistId !== menu.playlistId);
     setMenus(newMenus);
     if (menu.playlistId === currentPlaylist.playlistId) {

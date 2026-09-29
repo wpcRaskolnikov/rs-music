@@ -39,7 +39,7 @@ const Player: React.FC = () => {
   const [isMuted, setIsMuted] = useAtom(isMutedAtom);
   const [isPlaying, setIsPlaying] = useAtom(isPlayingAtom);
   const setCurrentTrackIndex = useSetAtom(currentTrackIndexAtom);
-  const setCurrentPlaylist = useSetAtom(currentPlaylistAtom);
+  const [currentPlaylist, setCurrentPlaylist] = useAtom(currentPlaylistAtom);
   const [shortcuts] = useAtom(shortcutsAtom);
 
   // 按键绑定
@@ -47,6 +47,7 @@ const Player: React.FC = () => {
   const volumeRef = useLatest(volume);
   const isMutedRef = useLatest(isMuted);
   const shortcutsRef = useLatest(shortcuts);
+  const currentPlaylistRef = useLatest(currentPlaylist);
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (
@@ -132,6 +133,19 @@ const Player: React.FC = () => {
       setCurrentTrackIndex(event.payload);
       setCurrentTime(0);
       setIsPlaying(true);
+    });
+    return () => {
+      unlisten.then((f) => f());
+    };
+  }, []);
+
+  useEffect(() => {
+    const unlisten = listen<string>("playlist-cleared", (event) => {
+      if (currentPlaylistRef.current.playlistId !== event.payload) return;
+      setCurrentPlaylist({ playlistId: event.payload, songs: [] });
+      setCurrentTrackIndex(-1);
+      setCurrentTime(0);
+      setIsPlaying(false);
     });
     return () => {
       unlisten.then((f) => f());

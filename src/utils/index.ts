@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 
 const formatTime = (sec: number) => {
   if (isNaN(sec) || sec <= 0) return "00:00";
@@ -17,6 +17,17 @@ export function useLatest<T>(value: T) {
     ref.current = value;
   });
   return ref;
+}
+
+export function useDebouncedValue<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+
+  return debouncedValue;
 }
 
 export function formatSingerName(singers: any[]): string {

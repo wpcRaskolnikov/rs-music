@@ -32,7 +32,7 @@ import {
   searchQueryAtom,
   onlineTrackAtom
 } from "../../store";
-import { formatTime } from "../../utils";
+import { formatTime, useDebouncedValue } from "../../utils";
 import { EmptyText } from "../../components";
 import type { OnlineSongInfo, Source } from "../../utils/musicSearch/types";
 import { useOnlineSearch } from "../../utils/musicSearch";
@@ -55,6 +55,9 @@ export interface OnlineTableProps {
 
 export default function OnlineTable({ source }: OnlineTableProps) {
   const query = useAtomValue(searchQueryAtom);
+  const cleanQuery = query.trim();
+  const debouncedQuery = useDebouncedValue(cleanQuery, 500);
+  const isDebouncing = cleanQuery !== debouncedQuery;
   const downloadDir = useAtomValue(downloadDirAtom);
   const selectedApi = useAtomValue(selectedApiAtom);
   const qualitiesMap = useAtomValue(qualitiesAtom);
@@ -68,26 +71,15 @@ export default function OnlineTable({ source }: OnlineTableProps) {
 
   useEffect(() => {
     setPage(1);
-  }, [source]);
+  }, [source, debouncedQuery]);
 
   const { data, error, isFetching, isPlaceholderData } = useOnlineSearch({
     source,
-    keyword: query.trim(),
+    keyword: debouncedQuery,
     page,
   });
 
-  if (error) {
-    return (
-      <Chip
-        icon={<ErrorOutlineIcon />}
-        label={error.message}
-        color="error"
-        variant="outlined"
-      />
-    );
-  }
-
-  const isStale = isFetching || isPlaceholderData;
+  const isStale = isDebouncing || isFetching || isPlaceholderData;
   const songs: OnlineSongInfo[] = data?.songs ?? [];
   const total = data?.total ?? 0;
 
@@ -141,12 +133,23 @@ export default function OnlineTable({ source }: OnlineTableProps) {
     await invoke("play_online_music", { url });
   };
 
-  if (!query.trim()) {
+  if (!cleanQuery) {
     return <EmptyText text="输入关键词搜索在线音源" />;
   }
 
+  if (error && !isDebouncing) {
+    return (
+      <Chip
+        icon={<ErrorOutlineIcon />}
+        label={error.message}
+        color="error"
+        variant="outlined"
+      />
+    );
+  }
+
   if (songs.length <= 0) {
-    return <EmptyText text="无搜索结果" />;
+    return <EmptyText text={isStale ? "搜索中..." : "无搜索结果"} />;
   }
 
   return (

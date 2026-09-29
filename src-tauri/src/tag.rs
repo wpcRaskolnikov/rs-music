@@ -68,32 +68,26 @@ pub fn get_album_cover(path: &str) -> String {
     .unwrap_or_default()
 }
 
-pub fn parse_music_metadata(path: &str) -> MusicMetadata {
-    let tagged_file = Probe::open(Path::new(path))
-        .expect("ERROR: Bad path provided!")
-        .read()
-        .expect("ERROR: Failed to read file!");
+pub fn parse_music_metadata(path: &str) -> anyhow::Result<MusicMetadata> {
+    let tagged_file = Probe::open(Path::new(path))?.read()?;
     let duration = tagged_file.properties().duration().as_secs() as i64;
-    let tag = tagged_file
-        .primary_tag()
-        .expect("ERROR: Failed to get tag!");
-    return MusicMetadata {
+    let tag = tagged_file.primary_tag();
+    let fallback_title = Path::new(path)
+        .file_stem()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "Unknown Title".to_string());
+
+    Ok(MusicMetadata {
         src: path.to_string(),
         title: tag
-            .title()
-            .as_deref()
-            .unwrap_or("Unknown Title")
-            .to_string(),
+            .and_then(|tag| tag.title().map(|value| value.into_owned()))
+            .unwrap_or(fallback_title),
         artist: tag
-            .artist()
-            .as_deref()
-            .unwrap_or("Unknown Artist")
-            .to_string(),
+            .and_then(|tag| tag.artist().map(|value| value.into_owned()))
+            .unwrap_or_else(|| "Unknown Artist".to_string()),
         album: tag
-            .album()
-            .as_deref()
-            .unwrap_or("Unknown Album")
-            .to_string(),
+            .and_then(|tag| tag.album().map(|value| value.into_owned()))
+            .unwrap_or_else(|| "Unknown Album".to_string()),
         duration,
-    };
+    })
 }
