@@ -10,6 +10,7 @@ export default function UpdateSection({ version }: { version: string }) {
   const [update, setUpdate] = useState<Update | null>(null);
   const [checking, setChecking] = useState(false);
   const [installing, setInstalling] = useState(false);
+  const [progress, setProgress] = useState<number | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -32,8 +33,22 @@ export default function UpdateSection({ version }: { version: string }) {
     if (!update) return;
     setInstalling(true);
     setError("");
+    setProgress(null);
+    let downloaded = 0;
+    let total = 0;
     try {
-      await update.downloadAndInstall();
+      await update.downloadAndInstall((event) => {
+        if (event.event === "Started") {
+          total = event.data.contentLength ?? 0;
+          downloaded = 0;
+          setProgress(total > 0 ? 0 : null);
+        } else if (event.event === "Progress") {
+          downloaded += event.data.chunkLength;
+          setProgress(total > 0 ? Math.min(100, downloaded / total * 100) : null);
+        } else if (event.event === "Finished") {
+          setProgress(null);
+        }
+      });
       await relaunch();
     } catch (err) {
       setError(`更新失败：${String(err)}`);
@@ -82,8 +97,13 @@ export default function UpdateSection({ version }: { version: string }) {
             <Box sx={{ mt: 2 }} >
               <Typography variant="body2" sx={{ mb: 1 }}>
                 正在下载并安装更新…
+                {progress !== null && ` ${Math.floor(progress)}%`}
               </Typography>
-              <LinearProgress/>
+              <LinearProgress
+                aria-label="更新进度"
+                variant={progress !== null ? "determinate" : "indeterminate"}
+                value={progress ?? 0}
+              />
             </Box>
           )}
         </DialogContent>
